@@ -862,64 +862,140 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     try {
       final mqttService = MqttService();
-      await mqttService.connect();
       
-      // Wait a moment to see if connection stabilizes
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Check if connected
-      final connectionState = await mqttService.connectionStateStream.first;
+      // Use the new comprehensive test method
+      final testResult = await mqttService.testConnection();
       
       if (mounted) {
-        if (connectionState == MqttConnectionState.connected) {
+        if (testResult['success'] == true) {
+          // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('MQTT connection successful!'),
               backgroundColor: Colors.green,
             ),
           );
+          
+          // Show detailed diagnostic information
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('MQTT Connection Successful'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Connection established and test message sent!', 
+                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    const Text('Connection details:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...testResult['diagnostics'].entries.map((entry) => 
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text('${entry.key}: ${entry.value}'),
+                      )
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('To verify data transmission, try publishing to:', 
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    SelectableText('${testResult['testTopic'] ?? 'UA/IOT/test'}'),
+                    const SizedBox(height: 8),
+                    const Text('You can use an MQTT client like MQTT Explorer or mosquitto_pub to send test messages.'),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
         } else {
-          throw Exception('Failed to connect. State: $connectionState');
+          // Show error details
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('MQTT Connection Failed'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Error: ${testResult['error'] ?? "Unknown error"}', 
+                      style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    const Text('Diagnostic information:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...testResult['diagnostics'].entries.map((entry) => 
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text('${entry.key}: ${entry.value}'),
+                      )
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Troubleshooting steps:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    const Text('1. Check your internet connection'),
+                    const Text('2. Verify the MQTT broker address is correct (test.mosquitto.org is recommended)'),
+                    const Text('3. Make sure port 1883 is not blocked by a firewall'),
+                    const Text('4. Try clicking "Reset All Settings" below to restore defaults'),
+                    const SizedBox(height: 16),
+                    const Text('Test mosquitto.org from Terminal:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SelectableText('mosquitto_pub -h test.mosquitto.org -t "UA/IOT/test" -m "hello"'),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('OK'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    try {
+                      await AppConfig().resetToDefaults();
+                      await _loadSettings();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Settings reset to defaults. Please try reconnecting.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error resetting settings: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.orange,
+                  ),
+                  child: const Text('Reset All Settings'),
+                ),
+              ],
+            ),
+          );
         }
       }
-      
-      // Clean up
-      mqttService.dispose();
     } catch (e) {
       if (mounted) {
-        // Show detailed error message for troubleshooting
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('MQTT Connection Error'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Error: $e'),
-                  const SizedBox(height: 16),
-                  const Text('Troubleshooting steps:'),
-                  const SizedBox(height: 8),
-                  const Text('1. Check internet connection'),
-                  const Text('2. Verify the MQTT broker is accessible'),
-                  const Text('3. Check if firewall is blocking port 1883'),
-                  const Text('4. Verify MQTT credentials in app_config.dart'),
-                  const SizedBox(height: 16),
-                  Text('Current config values:'),
-                  Text('Host: ${AppConfig().mqttServerHost}'),
-                  Text('Port: ${AppConfig().mqttServerPort}'),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('OK'),
-              ),
-            ],
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error testing MQTT connection: $e'),
+            backgroundColor: Colors.red,
           ),
         );
       }
