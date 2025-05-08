@@ -27,7 +27,7 @@ class MqttService {
 
   MqttConnectionState _connectionState = MqttConnectionState.idle;
 
-  MqttService() : _identifier = MqttConstants.clientIdentifier + const Uuid().v4();
+  MqttService() : _identifier = 'smartgym_app_${DateTime.now().millisecondsSinceEpoch}';
 
   Stream<MqttConnectionState> get connectionStateStream => 
       _connectionStateController.stream;
@@ -50,14 +50,11 @@ class MqttService {
     try {
       _updateConnectionState(MqttConnectionState.connecting);
       
-      _client = MqttServerClient.withPort(
-        MqttConstants.serverHost, 
-        _identifier, 
-        MqttConstants.serverPort,
-      );
+      _client = MqttServerClient('test.mosquitto.org', _identifier);
       
+      _client!.port = 1883;
       _client!.logging(on: kDebugMode);
-      _client!.keepAlivePeriod = MqttConstants.keepAlivePeriod;
+      _client!.keepAlivePeriod = 20;
       _client!.onConnected = _onConnected;
       _client!.onDisconnected = _onDisconnected;
       _client!.onSubscribed = _onSubscribed;
@@ -66,10 +63,8 @@ class MqttService {
 
       final connMessage = MqttConnectMessage()
           .withClientIdentifier(_identifier)
-          .withWillQos(MqttQos.atLeastOnce)
           .startClean()
-          .withWillRetain()
-          .keepAliveFor(MqttConstants.keepAlivePeriod);
+          .withWillQos(MqttQos.atLeastOnce);
       
       _client!.connectionMessage = connMessage;
 
@@ -84,8 +79,8 @@ class MqttService {
       _updateConnectionState(MqttConnectionState.error);
     }
 
-    // Subscribe to predefined topics
-    if (_client!.connectionStatus?.state == MqttConnectionState.connected) {
+    // Subscribe to predefined topics if connected
+    if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
       _subscribeToTopic(MqttConstants.sensorDataTopic);
       _subscribeToTopic(MqttConstants.rfidRegisterTopic);
       _subscribeToTopic(MqttConstants.occupancyTopic);
@@ -134,7 +129,28 @@ class MqttService {
           MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
       
       try {
-        final Map<String, dynamic> data = json.decode(payload);
+        // For UA/IOT topics, messages might be simple strings like RFID card IDs
+        Map<String, dynamic> data;
+        
+        if (topic == MqttConstants.rfidRegisterTopic || topic == MqttConstants.rfidAuthTopic) {
+          // For RFID topics, the payload might just be a card ID string
+          data = {
+            MqttConstants.rfidIdField: payload.trim(),
+            'timestamp': DateTime.now().toIso8601String(),
+          };
+        } else {
+          // For other topics try to parse as JSON
+          try {
+            data = json.decode(payload);
+          } catch (e) {
+            // If not valid JSON, create a simple map with the payload as a value
+            data = {
+              'value': payload,
+              'timestamp': DateTime.now().toIso8601String(),
+            };
+          }
+        }
+        
         if (_topicControllers.containsKey(topic)) {
           _topicControllers[topic]!.add(data);
         }

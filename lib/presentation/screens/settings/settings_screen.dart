@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smartgymai/core/config/app_config.dart';
 import 'package:smartgymai/core/theme/app_theme.dart';
+import 'package:smartgymai/data/services/database_service.dart';
+import 'package:smartgymai/data/services/mqtt_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -35,6 +37,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   
   bool _isLoading = true;
   bool _hasChanges = false;
+  bool _isTestingDbConnection = false;
+  bool _isTestingMqttConnection = false;
 
   @override
   void initState() {
@@ -58,40 +62,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    // In a real app, this would be loaded from AppConfig
-    // For demonstration, we'll use placeholder values
-    
     setState(() {
       _isLoading = true;
     });
     
-    // Simulate loading delay
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    setState(() {
+    try {
+      // Simulate loading (in a real app, this would fetch settings from storage)
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Load from AppConfig
+      final appConfig = AppConfig();
+      
       // MQTT settings
-      _mqttHostController.text = 'broker.hivemq.com';
-      _mqttPortController.text = '1883';
-      _mqttUseSecure = false;
+      _mqttHostController.text = appConfig.mqttServerHost;
+      _mqttPortController.text = appConfig.mqttServerPort.toString();
+      _mqttUseSecure = appConfig.mqttUseSecure;
       
       // Database settings
-      _dbHostController.text = 'localhost';
-      _dbPortController.text = '5432';
-      _dbNameController.text = 'smartgym_db';
-      _dbUserController.text = 'smartgym_admin';
-      _dbPasswordController.text = 'smartgym_password';
-      _dbUseSecure = false;
+      _dbHostController.text = appConfig.dbHost;
+      _dbPortController.text = appConfig.dbPort.toString();
+      _dbNameController.text = appConfig.dbName;
+      _dbUserController.text = appConfig.dbUser;
+      _dbPasswordController.text = appConfig.dbPassword;
+      _dbUseSecure = appConfig.dbUseSecure;
       
       // Gym settings
-      _gymNameController.text = 'Smart Gym';
-      _gymCapacityController.text = '100';
+      _gymNameController.text = appConfig.gymName;
+      _gymCapacityController.text = appConfig.gymCapacity.toString();
       
       // App settings
-      _refreshRateController.text = '30';
+      _refreshRateController.text = appConfig.dashboardRefreshRate.toString();
       
-      _isLoading = false;
-      _hasChanges = false;
-    });
+      setState(() {
+        _isLoading = false;
+        _hasChanges = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading settings: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -103,23 +122,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isLoading = true;
     });
     
-    // In a real app, this would save to AppConfig
-    // For demonstration, we'll just simulate a delay
-    await Future.delayed(const Duration(milliseconds: 1000));
-    
-    setState(() {
-      _isLoading = false;
-      _hasChanges = false;
-    });
-    
-    if (!mounted) return;
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Settings saved successfully'),
-        backgroundColor: AppTheme.successColor,
-      ),
-    );
+    try {
+      final appConfig = AppConfig();
+      
+      // Save MQTT settings
+      await appConfig.setMqttServerHost(_mqttHostController.text);
+      await appConfig.setMqttServerPort(int.parse(_mqttPortController.text));
+      await appConfig.setMqttUseSecure(_mqttUseSecure);
+      
+      // Save database settings
+      await appConfig.setDbHost(_dbHostController.text);
+      await appConfig.setDbPort(int.parse(_dbPortController.text));
+      await appConfig.setDbName(_dbNameController.text);
+      await appConfig.setDbUser(_dbUserController.text);
+      await appConfig.setDbPassword(_dbPasswordController.text);
+      await appConfig.setDbUseSecure(_dbUseSecure);
+      
+      // Save gym settings
+      await appConfig.setGymName(_gymNameController.text);
+      await appConfig.setGymCapacity(int.parse(_gymCapacityController.text));
+      
+      // Save app settings
+      await appConfig.setDashboardRefreshRate(int.parse(_refreshRateController.text));
+      
+      setState(() {
+        _isLoading = false;
+        _hasChanges = false;
+      });
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Settings saved successfully. App restart recommended for database changes.'),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving settings: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -158,42 +210,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 24),
                     _buildAppSettings(),
                     const SizedBox(height: 32),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _hasChanges ? _saveSettings : null,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Save Settings'),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _hasChanges ? _saveSettings : null,
+                                  icon: const Icon(Icons.save),
+                                  label: const Text('Save Settings'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _hasChanges ? _discardChanges : null,
+                                  icon: const Icon(Icons.cancel),
+                                  label: const Text('Discard Changes'),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _loadSettings,
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Discard Changes'),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    // Show confirmation dialog
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Reset Settings'),
+                                        content: const Text(
+                                          'This will reset all settings to their default values. This may help resolve connection issues. Continue?'
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(context).pop(false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.of(context).pop(true),
+                                            child: const Text('Reset'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    
+                                    if (confirm == true && mounted) {
+                                      setState(() {
+                                        _isLoading = true;
+                                      });
+                                      
+                                      try {
+                                        await AppConfig().resetToDefaults();
+                                        await _loadSettings(); // Reload settings from defaults
+                                        
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Settings reset to defaults. App restart recommended.'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Error resetting settings: $e'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() {
+                                            _isLoading = false;
+                                          });
+                                        }
+                                      }
+                                    }
+                                  },
+                                  icon: const Icon(Icons.restore, color: Colors.red),
+                                  label: const Text('Reset All Settings', style: TextStyle(color: Colors.red)),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          _showResetConfirmation();
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.errorColor,
-                          side: const BorderSide(color: AppTheme.errorColor),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text('Reset to Defaults'),
+                        ],
                       ),
                     ),
                   ],
@@ -267,12 +383,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () {
-                _testConnection('MQTT');
-              },
-              icon: const Icon(Icons.power),
-              label: const Text('Test Connection'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _isTestingMqttConnection ? null : _testMqttConnection,
+                  icon: _isTestingMqttConnection 
+                    ? const SizedBox(
+                        width: 20, 
+                        height: 20, 
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.wifi),
+                  label: Text(_isTestingMqttConnection ? 'Testing...' : 'Test Connection'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -387,12 +516,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () {
-                _testConnection('Database');
-              },
-              icon: const Icon(Icons.power),
-              label: const Text('Test Connection'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _isTestingDbConnection ? null : _testDatabaseConnection,
+                  icon: _isTestingDbConnection 
+                    ? const SizedBox(
+                        width: 20, 
+                        height: 20, 
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.checklist),
+                  label: Text(_isTestingDbConnection ? 'Testing...' : 'Test Connection'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -568,5 +710,234 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text('Settings reset to defaults'),
       ),
     );
+  }
+
+  Future<void> _testDatabaseConnection() async {
+    setState(() {
+      _isTestingDbConnection = true;
+    });
+    
+    try {
+      final databaseService = DatabaseService();
+      // Get diagnostic info first
+      final diagnostics = await databaseService.getDiagnosticInfo();
+      
+      // Try a simple query to test the connection
+      final result = await databaseService.query('SELECT 1 as test');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Database connection successful! Result: ${result.first['test']}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Show detailed diagnostic information
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Database Diagnostics'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Connection successful!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  const Text('Configuration details:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  ...diagnostics.entries.map((entry) => 
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text('${entry.key}: ${entry.value}'),
+                    )
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Note: For Android emulators, the host is automatically changed to 10.0.2.2'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        // Get diagnostic info to help troubleshoot
+        final diagnostics = await DatabaseService().getDiagnosticInfo().catchError((_) => <String, String>{
+          'error': 'Could not get diagnostics',
+          'host': AppConfig().dbHost,
+          'port': AppConfig().dbPort.toString(),
+        });
+        
+        // Show detailed error message for troubleshooting
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Database Connection Error'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 16),
+                  const Text('Diagnostic information:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  ...diagnostics.entries.map((entry) => 
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text('${entry.key}: ${entry.value}'),
+                    )
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Troubleshooting steps:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('1. Ensure Docker containers are running (docker ps)'),
+                  const Text('2. Check container logs (docker logs smartgym_postgres)'),
+                  const Text('3. For Android emulator, use 10.0.2.2 instead of localhost'),
+                  const Text('4. Verify DB credentials in app_config.dart'),
+                  const Text('5. Try clicking "Reset All Settings" below'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  try {
+                    await AppConfig().resetToDefaults();
+                    await _loadSettings();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Settings reset to defaults. Please try reconnecting.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error resetting settings: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.orange,
+                ),
+                child: const Text('Reset All Settings'),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTestingDbConnection = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _testMqttConnection() async {
+    setState(() {
+      _isTestingMqttConnection = true;
+    });
+    
+    try {
+      final mqttService = MqttService();
+      await mqttService.connect();
+      
+      // Wait a moment to see if connection stabilizes
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Check if connected
+      final connectionState = await mqttService.connectionStateStream.first;
+      
+      if (mounted) {
+        if (connectionState == MqttConnectionState.connected) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('MQTT connection successful!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          throw Exception('Failed to connect. State: $connectionState');
+        }
+      }
+      
+      // Clean up
+      mqttService.dispose();
+    } catch (e) {
+      if (mounted) {
+        // Show detailed error message for troubleshooting
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('MQTT Connection Error'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Error: $e'),
+                  const SizedBox(height: 16),
+                  const Text('Troubleshooting steps:'),
+                  const SizedBox(height: 8),
+                  const Text('1. Check internet connection'),
+                  const Text('2. Verify the MQTT broker is accessible'),
+                  const Text('3. Check if firewall is blocking port 1883'),
+                  const Text('4. Verify MQTT credentials in app_config.dart'),
+                  const SizedBox(height: 16),
+                  Text('Current config values:'),
+                  Text('Host: ${AppConfig().mqttServerHost}'),
+                  Text('Port: ${AppConfig().mqttServerPort}'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTestingMqttConnection = false;
+        });
+      }
+    }
+  }
+
+  void _discardChanges() {
+    setState(() {
+      _hasChanges = false;
+    });
+    
+    // Reload settings from shared preferences
+    _loadSettings();
   }
 } 

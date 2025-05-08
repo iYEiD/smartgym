@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smartgymai/core/theme/app_theme.dart';
 import 'package:smartgymai/presentation/screens/analytics/analytics_dashboard_screen.dart';
 import 'package:smartgymai/presentation/screens/activity_log/activity_log_screen.dart';
 import 'package:smartgymai/presentation/screens/user_management/user_management_screen.dart';
 import 'package:smartgymai/presentation/screens/settings/settings_screen.dart';
+import 'package:smartgymai/presentation/widgets/connection_status_bar.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
   
   final List<Widget> _screens = [
@@ -25,7 +27,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: Column(
+        children: [
+          // Connection status bar at the top
+          const ConnectionStatusBar(),
+          // Main content
+          Expanded(
+            child: _screens[_selectedIndex],
+          ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {

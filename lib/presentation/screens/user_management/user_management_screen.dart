@@ -5,15 +5,16 @@ import 'package:smartgymai/core/theme/app_theme.dart';
 import 'package:smartgymai/domain/entities/user.dart';
 import 'package:smartgymai/presentation/screens/user_management/user_registration_screen.dart';
 import 'package:smartgymai/presentation/widgets/user_list_item.dart';
+import 'package:smartgymai/providers/users_provider.dart';
 
-class UserManagementScreen extends StatefulWidget {
+class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({Key? key}) : super(key: key);
 
   @override
-  State<UserManagementScreen> createState() => _UserManagementScreenState();
+  ConsumerState<UserManagementScreen> createState() => _UserManagementScreenState();
 }
 
-class _UserManagementScreenState extends State<UserManagementScreen> {
+class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedFilter = 'All';
@@ -27,6 +28,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Refresh users data when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(usersProvider.notifier).fetchUsers();
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -34,6 +44,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch the users state
+    final usersState = ref.watch(usersProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('User Management'),
@@ -41,8 +54,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              // Refresh data
-              // In a real implementation, this would trigger data refresh
+              // Refresh users data
+              ref.read(usersProvider.notifier).fetchUsers();
             },
           ),
         ],
@@ -50,9 +63,58 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       body: Column(
         children: [
           _buildSearchAndFilterBar(),
-          Expanded(
-            child: _buildUserList(),
-          ),
+          if (usersState.isLoading) 
+            const Expanded(
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (usersState.errorMessage != null)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading users',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        usersState.errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ref.read(usersProvider.notifier).fetchUsers();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Try Again'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: _buildUserList(usersState.users),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -133,11 +195,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  Widget _buildUserList() {
-    // Placeholder data
-    // In a real app, this would be populated from the repository
-    final users = _getMockUsers();
-    
+  Widget _buildUserList(List<User> users) {
     // Apply filters and search
     final filteredUsers = users.where((user) {
       // Apply search filter
@@ -198,8 +256,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return RefreshIndicator(
       onRefresh: () async {
         // Pull to refresh functionality
-        // In a real app, this would refresh the user list
-        await Future.delayed(const Duration(seconds: 1));
+        await ref.read(usersProvider.notifier).fetchUsers();
       },
       child: ListView.builder(
         itemCount: filteredUsers.length,
@@ -222,71 +279,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  List<User> _getMockUsers() {
-    final now = DateTime.now();
-    return [
-      User(
-        id: '1',
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        phone: '(123) 456-7890',
-        membershipType: 'Premium',
-        lastCheckIn: now.subtract(const Duration(hours: 1)),
-        registrationDate: DateTime(2022, 1, 15),
-      ),
-      User(
-        id: '2',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane.smith@example.com',
-        phone: '(234) 567-8901',
-        membershipType: 'Standard',
-        lastCheckIn: now.subtract(const Duration(days: 2)),
-        lastCheckout: now.subtract(const Duration(days: 2, hours: 2)),
-        registrationDate: DateTime(2022, 3, 10),
-      ),
-      User(
-        id: '3',
-        firstName: 'Michael',
-        lastName: 'Johnson',
-        email: 'michael.j@example.com',
-        phone: '(345) 678-9012',
-        membershipType: 'Basic',
-        lastCheckIn: now.subtract(const Duration(hours: 5)),
-        lastCheckout: now.subtract(const Duration(hours: 3)),
-        registrationDate: DateTime(2022, 5, 20),
-      ),
-      User(
-        id: '4',
-        firstName: 'Sarah',
-        lastName: 'Williams',
-        email: 'sarah.w@example.com',
-        phone: '(456) 789-0123',
-        membershipType: 'Premium',
-        lastCheckIn: now.subtract(const Duration(days: 1)),
-        lastCheckout: now.subtract(const Duration(days: 1, hours: 2)),
-        registrationDate: DateTime(2022, 2, 8),
-      ),
-      User(
-        id: '5',
-        firstName: 'David',
-        lastName: 'Brown',
-        email: 'david.brown@example.com',
-        phone: '(567) 890-1234',
-        membershipType: 'Standard',
-        registrationDate: DateTime(2022, 4, 15),
-      ),
-    ];
-  }
-
-  void _navigateToUserRegistration(BuildContext context) {
-    // In a real app, this would navigate to the registration screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('User registration would open here'),
+  void _navigateToUserRegistration(BuildContext context) async {
+    // Navigate to registration screen and refresh users when returning
+    final result = await Navigator.push<User?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const UserRegistrationScreen(),
       ),
     );
+    
+    if (result != null) {
+      // User was registered, refresh the list
+      if (mounted) {
+        ref.read(usersProvider.notifier).fetchUsers();
+      }
+    }
   }
 
   void _navigateToUserDetails(BuildContext context, User user) {
@@ -298,23 +305,53 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  void _checkInUser(User user) {
-    // In a real app, this would check in the user via the repository
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${user.fullName} has been checked in'),
-        backgroundColor: AppTheme.occupancyLowColor,
-      ),
-    );
+  void _checkInUser(User user) async {
+    try {
+      // Call the check-in method from the provider
+      await ref.read(usersProvider.notifier).checkInUser(user.id);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${user.fullName} has been checked in'),
+            backgroundColor: AppTheme.occupancyLowColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking in: ${e.toString()}'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
-  void _checkoutUser(User user) {
-    // In a real app, this would check out the user via the repository
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${user.fullName} has been checked out'),
-        backgroundColor: AppTheme.occupancyHighColor,
-      ),
-    );
+  void _checkoutUser(User user) async {
+    try {
+      // Call the check-out method from the provider
+      await ref.read(usersProvider.notifier).checkOutUser(user.id);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${user.fullName} has been checked out'),
+            backgroundColor: AppTheme.occupancyHighColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking out: ${e.toString()}'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 } 

@@ -52,19 +52,21 @@ class SensorDataModel extends SensorData {
   }
 
   factory SensorDataModel.fromMqttPayload(Map<String, dynamic> payload) {
+    // Handle payload format from UA/IOT topics
     final List<bool> parkingSpots = [];
     
-    if (payload['parkingSensor'] is List) {
+    // Check if parkingSensor exists in the payload
+    if (payload.containsKey('parkingSensor') && payload['parkingSensor'] is List) {
       final List parkingSensorData = payload['parkingSensor'] as List;
-      parkingSpots.addAll(parkingSensorData.map((spot) => spot as bool));
+      parkingSpots.addAll(parkingSensorData.map((spot) => spot == 1 || spot == true).toList());
     }
 
     return SensorDataModel(
       timestamp: DateTime.now(),
-      lightLevel: payload['lightSensor'],
-      temperature: payload['temperature']?.toDouble(),
-      humidity: payload['humidity']?.toDouble(),
-      motionDetected: payload['motionSensor'],
+      lightLevel: payload['lightSensor'] is num ? payload['lightSensor'] : null,
+      temperature: payload['temperature'] is num ? payload['temperature']?.toDouble() : null,
+      humidity: payload['humidity'] is num ? payload['humidity']?.toDouble() : null,
+      motionDetected: payload['motionSensor'] == 1 || payload['motionSensor'] == true,
       parkingSpots: parkingSpots,
     );
   }

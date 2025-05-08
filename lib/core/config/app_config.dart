@@ -25,14 +25,14 @@ class AppConfig {
   static const String _dashboardRefreshRateKey = 'dashboard_refresh_rate';
   
   // Default values
-  static const String _defaultMqttHost = 'broker.hivemq.com';
+  static const String _defaultMqttHost = 'test.mosquitto.org';
   static const int _defaultMqttPort = 1883;
   static const bool _defaultMqttUseSecure = false;
-  static const String _defaultDbHost = 'localhost';
+  static const String _defaultDbHost = '192.168.1.10'; // Use 10.0.2.2 to access host from Android emulator, replace with ip
   static const int _defaultDbPort = 5432;
   static const String _defaultDbName = 'smartgym_db';
-  static const String _defaultDbUser = 'smartgym_admin';
-  static const String _defaultDbPassword = 'smartgym_password';
+  static const String _defaultDbUser = 'smartgym';
+  static const String _defaultDbPassword = 'smartgym123';
   static const bool _defaultDbUseSecure = false;
   static const String _defaultGymName = 'Smart Gym';
   static const int _defaultGymCapacity = 100;

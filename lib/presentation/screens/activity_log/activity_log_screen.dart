@@ -4,15 +4,17 @@ import 'package:intl/intl.dart';
 import 'package:smartgymai/core/theme/app_theme.dart';
 import 'package:smartgymai/domain/entities/check_in_log.dart';
 import 'package:smartgymai/domain/entities/user.dart';
+import 'package:smartgymai/providers/activities_provider.dart';
+import 'package:smartgymai/providers/users_provider.dart';
 
-class ActivityLogScreen extends StatefulWidget {
+class ActivityLogScreen extends ConsumerStatefulWidget {
   const ActivityLogScreen({Key? key}) : super(key: key);
 
   @override
-  State<ActivityLogScreen> createState() => _ActivityLogScreenState();
+  ConsumerState<ActivityLogScreen> createState() => _ActivityLogScreenState();
 }
 
-class _ActivityLogScreenState extends State<ActivityLogScreen> {
+class _ActivityLogScreenState extends ConsumerState<ActivityLogScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedFilter = 'All';
@@ -35,6 +37,15 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
   DateTimeRange? _customDateRange;
 
   @override
+  void initState() {
+    super.initState();
+    // Fetch activities when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(activitiesProvider.notifier).fetchActivities();
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -42,6 +53,11 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch the activities state
+    final activitiesState = ref.watch(activitiesProvider);
+    // Watch the users state to get user names
+    final usersState = ref.watch(usersProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Activity Log'),
@@ -64,9 +80,61 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
         children: [
           _buildSearchBar(),
           _buildFilterChips(),
-          Expanded(
-            child: _buildActivityList(),
-          ),
+          if (activitiesState.isLoading) 
+            const Expanded(
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (activitiesState.errorMessage != null)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading activities',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        activitiesState.errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ref.read(activitiesProvider.notifier).fetchActivities();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Try Again'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: _buildActivityList(
+                activities: activitiesState.activities,
+                users: usersState.users,
+              ),
+            ),
         ],
       ),
     );
@@ -228,17 +296,28 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
     );
   }
 
-  Widget _buildActivityList() {
-    // Placeholder data
-    // In a real app, this would come from the repository
-    final activities = _getMockActivities();
-    
+  Widget _buildActivityList({
+    required List<CheckInLog> activities,
+    required List<User> users,
+  }) {
     // Apply filters and search
     final filteredActivities = activities.where((activity) {
+      // Get the associated user for this activity
+      final user = users.firstWhere(
+        (u) => u.id == activity.userId,
+        orElse: () => User(
+          id: activity.userId,
+          firstName: 'Unknown', 
+          lastName: 'User',
+          membershipType: 'Unknown',
+          registrationDate: DateTime.now(),
+        ),
+      );
+      
       // Apply search
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        final matchesName = activity.userName.toLowerCase().contains(query);
+        final matchesName = user.fullName.toLowerCase().contains(query);
         
         if (!matchesName) {
           return false;
@@ -255,8 +334,8 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
           return true;
       }
       
-      // Apply time filter based on _selectedTimeRange and _customDateRange
-      // This would be implemented in a real app
+      // Time filter logic would go here
+      // This would use _selectedTimeRange and _customDateRange
     }).toList();
     
     if (filteredActivities.isEmpty) {
@@ -292,20 +371,31 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
     return RefreshIndicator(
       onRefresh: () async {
         // Pull to refresh functionality
-        // In a real app, this would refresh the activity log
-        await Future.delayed(const Duration(seconds: 1));
+        await ref.read(activitiesProvider.notifier).fetchActivities();
       },
       child: ListView.builder(
         itemCount: filteredActivities.length,
         itemBuilder: (context, index) {
           final activity = filteredActivities[index];
-          return _buildActivityItem(activity);
+          // Find the associated user
+          final user = users.firstWhere(
+            (u) => u.id == activity.userId,
+            orElse: () => User(
+              id: activity.userId,
+              firstName: 'Unknown', 
+              lastName: 'User',
+              membershipType: 'Unknown',
+              registrationDate: DateTime.now(),
+            ),
+          );
+          
+          return _buildActivityItem(activity, user);
         },
       ),
     );
   }
 
-  Widget _buildActivityItem(ActivityRecord activity) {
+  Widget _buildActivityItem(CheckInLog activity, User user) {
     final theme = Theme.of(context);
     
     return Card(
@@ -336,16 +426,16 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        activity.userName,
+                        user.fullName,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        activity.membershipType,
+                        user.membershipType,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _getMembershipColor(activity.membershipType),
+                          color: _getMembershipColor(user.membershipType),
                         ),
                       ),
                     ],
@@ -515,78 +605,4 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
       ),
     );
   }
-
-  List<ActivityRecord> _getMockActivities() {
-    final now = DateTime.now();
-    
-    return [
-      ActivityRecord(
-        id: '1',
-        userId: '1',
-        userName: 'John Doe',
-        membershipType: 'Premium',
-        checkInTime: now.subtract(const Duration(hours: 1)),
-        checkoutTime: null,
-        durationMinutes: null,
-      ),
-      ActivityRecord(
-        id: '2',
-        userId: '2',
-        userName: 'Jane Smith',
-        membershipType: 'Standard',
-        checkInTime: now.subtract(const Duration(hours: 3)),
-        checkoutTime: now.subtract(const Duration(hours: 1)),
-        durationMinutes: 120,
-      ),
-      ActivityRecord(
-        id: '3',
-        userId: '3',
-        userName: 'Michael Johnson',
-        membershipType: 'Basic',
-        checkInTime: now.subtract(const Duration(hours: 5)),
-        checkoutTime: now.subtract(const Duration(hours: 3)),
-        durationMinutes: 120,
-      ),
-      ActivityRecord(
-        id: '4',
-        userId: '4',
-        userName: 'Sarah Williams',
-        membershipType: 'Premium',
-        checkInTime: now.subtract(const Duration(days: 1)),
-        checkoutTime: now.subtract(const Duration(days: 1, hours: 2)),
-        durationMinutes: 120,
-      ),
-      ActivityRecord(
-        id: '5',
-        userId: '5',
-        userName: 'David Brown',
-        membershipType: 'Standard',
-        checkInTime: now.subtract(const Duration(days: 2)),
-        checkoutTime: now.subtract(const Duration(days: 2, hours: 1)),
-        durationMinutes: 60,
-      ),
-    ];
-  }
-}
-
-class ActivityRecord {
-  final String id;
-  final String userId;
-  final String userName;
-  final String membershipType;
-  final DateTime checkInTime;
-  final DateTime? checkoutTime;
-  final int? durationMinutes;
-
-  const ActivityRecord({
-    required this.id,
-    required this.userId,
-    required this.userName,
-    required this.membershipType,
-    required this.checkInTime,
-    this.checkoutTime,
-    this.durationMinutes,
-  });
-
-  bool get isActive => checkoutTime == null;
 } 

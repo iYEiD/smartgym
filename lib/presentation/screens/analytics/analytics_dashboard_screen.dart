@@ -8,12 +8,19 @@ import 'package:smartgymai/domain/entities/sensor_data.dart';
 import 'package:smartgymai/presentation/widgets/occupancy_chart.dart';
 import 'package:smartgymai/presentation/widgets/parking_spot_indicator.dart';
 import 'package:smartgymai/presentation/widgets/sensor_value_card.dart';
+import 'package:smartgymai/providers/sensors_provider.dart';
 
-class AnalyticsDashboardScreen extends StatelessWidget {
+class AnalyticsDashboardScreen extends ConsumerWidget {
   const AnalyticsDashboardScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the sensors provider state
+    final sensorsState = ref.watch(sensorsProvider);
+    
+    // Get the gym capacity from app config
+    final gymCapacity = AppConfig().gymCapacity;
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analytics Dashboard'),
@@ -22,7 +29,8 @@ class AnalyticsDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.refresh),
             onPressed: () {
               // Refresh data
-              // In a real implementation, this would trigger data refresh
+              ref.read(sensorsProvider.notifier).fetchLatestData();
+              ref.read(sensorsProvider.notifier).fetchOccupancyHistory();
             },
           ),
         ],
@@ -30,18 +38,36 @@ class AnalyticsDashboardScreen extends StatelessWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           // Pull to refresh functionality
-          // In a real implementation, this would refresh data
-          await Future.delayed(const Duration(seconds: 1));
+          await ref.read(sensorsProvider.notifier).fetchLatestData();
+          await ref.read(sensorsProvider.notifier).fetchOccupancyHistory();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildCurrentOccupancyCard(),
-              _buildEnvironmentSensorsGrid(),
-              _buildOccupancyTrendChart(),
-              _buildParkingAvailability(),
+              _buildCurrentOccupancyCard(
+                context, 
+                sensorsState.latestOccupancy, 
+                gymCapacity,
+                isLoading: sensorsState.isLoading,
+              ),
+              _buildEnvironmentSensorsGrid(
+                context, 
+                sensorsState.latestSensorData,
+                isLoading: sensorsState.isLoading,
+              ),
+              _buildOccupancyTrendChart(
+                context, 
+                sensorsState.occupancyHistory,
+                gymCapacity,
+                isLoading: sensorsState.isLoading,
+              ),
+              _buildParkingAvailability(
+                context, 
+                sensorsState.latestSensorData?.parkingSpots ?? [],
+                isLoading: sensorsState.isLoading,
+              ),
             ],
           ),
         ),
@@ -49,11 +75,14 @@ class AnalyticsDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCurrentOccupancyCard() {
-    // This is a placeholder implementation
-    // In a real app, this would be connected to the repository via state management
-    const currentOccupancy = 42;
-    const capacity = 100;
+  Widget _buildCurrentOccupancyCard(
+    BuildContext context, 
+    OccupancyRecord? occupancy, 
+    int capacity, 
+    {bool isLoading = false}
+  ) {
+    // Use actual data or default values if not available
+    final currentOccupancy = occupancy?.count ?? 0;
     final percentage = (currentOccupancy / capacity * 100).round();
     
     Color statusColor;
@@ -107,30 +136,32 @@ class AnalyticsDashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '$currentOccupancy',
-                  style: const TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
+            isLoading
+              ? const CircularProgressIndicator()
+              : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '$currentOccupancy',
+                    style: const TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Text(
-                  '/$capacity',
-                  style: TextStyle(
-                    fontSize: 24,
-                    color: Colors.grey[600],
+                  Text(
+                    '/$capacity',
+                    style: TextStyle(
+                      fontSize: 24,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             const SizedBox(height: 24),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
-                value: currentOccupancy / capacity,
+                value: isLoading ? 0.0 : currentOccupancy / capacity,
                 backgroundColor: Colors.grey[200],
                 color: statusColor,
                 minHeight: 16,
@@ -141,7 +172,7 @@ class AnalyticsDashboardScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Last updated: ${DateFormat('HH:mm:ss').format(DateTime.now())}',
+                  'Last updated: ${occupancy != null ? DateFormat('HH:mm:ss').format(occupancy.timestamp) : 'N/A'}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -162,9 +193,11 @@ class AnalyticsDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEnvironmentSensorsGrid() {
-    // Placeholder sensor data
-    // In a real app, this would be connected to the repository
+  Widget _buildEnvironmentSensorsGrid(
+    BuildContext context, 
+    SensorData? sensorData,
+    {bool isLoading = false}
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -184,34 +217,38 @@ class AnalyticsDashboardScreen extends StatelessWidget {
             mainAxisSpacing: 16,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            children: const [
+            children: [
               SensorValueCard(
                 title: 'Temperature',
-                value: '24.5',
+                value: sensorData?.temperature?.toString() ?? '--',
                 unit: '°C',
                 icon: Icons.thermostat,
                 color: Colors.orange,
+                isLoading: isLoading,
               ),
               SensorValueCard(
                 title: 'Humidity',
-                value: '65',
+                value: sensorData?.humidity?.toString() ?? '--',
                 unit: '%',
                 icon: Icons.water_drop,
                 color: Colors.blue,
+                isLoading: isLoading,
               ),
               SensorValueCard(
                 title: 'Light Level',
-                value: '850',
+                value: sensorData?.lightLevel?.toString() ?? '--',
                 unit: 'lux',
                 icon: Icons.light_mode,
                 color: Colors.amber,
+                isLoading: isLoading,
               ),
               SensorValueCard(
                 title: 'Motion',
-                value: 'Yes',
+                value: sensorData?.motionDetected == true ? 'Yes' : 'None',
                 unit: '',
                 icon: Icons.directions_run,
                 color: Colors.green,
+                isLoading: isLoading,
               ),
             ],
           ),
@@ -220,49 +257,27 @@ class AnalyticsDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOccupancyTrendChart() {
-    // Placeholder data
-    // In a real app, this would come from the repository
-    final now = DateTime.now();
-    final records = [
-      OccupancyRecord(
-        timestamp: now.subtract(const Duration(hours: 5)),
-        count: 12,
-      ),
-      OccupancyRecord(
-        timestamp: now.subtract(const Duration(hours: 4)),
-        count: 25,
-      ),
-      OccupancyRecord(
-        timestamp: now.subtract(const Duration(hours: 3)),
-        count: 45,
-      ),
-      OccupancyRecord(
-        timestamp: now.subtract(const Duration(hours: 2)),
-        count: 58,
-      ),
-      OccupancyRecord(
-        timestamp: now.subtract(const Duration(hours: 1)),
-        count: 42,
-      ),
-    ];
-    
+  Widget _buildOccupancyTrendChart(
+    BuildContext context, 
+    List<OccupancyRecord> records,
+    int capacity,
+    {bool isLoading = false}
+  ) {
     return OccupancyChart(
       records: records,
-      capacity: 100,
+      capacity: capacity,
+      isLoading: isLoading,
     );
   }
 
-  Widget _buildParkingAvailability() {
-    // Placeholder parking data
-    // In a real app, this would come from the repository
-    final parkingSpots = [
-      true, false, true, true, false,
-      true, true, false, true, false,
-    ];
-    
+  Widget _buildParkingAvailability(
+    BuildContext context, 
+    List<bool> parkingSpots,
+    {bool isLoading = false}
+  ) {
     return ParkingSpotIndicator(
       parkingSpots: parkingSpots,
+      isLoading: isLoading,
     );
   }
 } 

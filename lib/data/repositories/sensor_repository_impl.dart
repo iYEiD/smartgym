@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:logger/logger.dart';
 
 import 'package:smartgymai/core/constants/mqtt_constants.dart';
 import 'package:smartgymai/data/models/occupancy_record_model.dart';
@@ -13,32 +14,57 @@ import 'package:smartgymai/domain/repositories/sensor_repository.dart';
 class SensorRepositoryImpl implements SensorRepository {
   final DatabaseService _databaseService;
   final MqttService _mqttService;
+  final Logger _logger;
   
   final _sensorDataStreamController = StreamController<SensorData>.broadcast();
   final _occupancyStreamController = StreamController<OccupancyRecord>.broadcast();
   
-  SensorRepositoryImpl(this._databaseService, this._mqttService) {
+  SensorRepositoryImpl(this._databaseService, this._mqttService, this._logger) {
     _initialize();
   }
   
   void _initialize() {
     // Subscribe to sensor data MQTT topic
     _mqttService.subscribeTo(MqttConstants.sensorDataTopic).listen((data) {
-      final sensorData = SensorDataModel.fromMqttPayload(data);
-      saveSensorData(sensorData);
-      _sensorDataStreamController.add(sensorData);
+      try {
+        final sensorData = SensorDataModel.fromMqttPayload(data);
+        saveSensorData(sensorData);
+        _sensorDataStreamController.add(sensorData);
+      } catch (e) {
+        _logger.e('Error processing sensor data: $e');
+      }
     });
     
     // Subscribe to occupancy MQTT topic
     _mqttService.subscribeTo(MqttConstants.occupancyTopic).listen((data) {
-      if (data.containsKey('count')) {
+      try {
+        // Handle occupancy data in the format from the example
+        int count = 0;
+        if (data.containsKey('count') && data['count'] is num) {
+          count = data['count'] as int;
+        } else if (data.containsKey('occupancy') && data['occupancy'] is num) {
+          count = data['occupancy'] as int;
+        }
+        
         final occupancyRecord = OccupancyRecordModel(
           timestamp: DateTime.now(),
-          count: data['count'],
+          count: count,
           sensorReadings: data,
         );
+        
         saveOccupancyRecord(occupancyRecord);
         _occupancyStreamController.add(occupancyRecord);
+      } catch (e) {
+        _logger.e('Error processing occupancy data: $e');
+      }
+    });
+    
+    // Subscribe to RFID register topic for debugging
+    _mqttService.subscribeTo(MqttConstants.rfidRegisterTopic).listen((data) {
+      try {
+        _logger.i('RFID register data received: $data');
+      } catch (e) {
+        _logger.e('Error processing RFID data: $e');
       }
     });
   }
