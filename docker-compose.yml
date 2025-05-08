@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14
+    container_name: smartgym_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: smartgym
+      POSTGRES_PASSWORD: smartgym123
+      POSTGRES_DB: smartgym_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartgym -d smartgym_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartgym_network
+      
+  # Optional: Add a pgAdmin container for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: smartgym_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@smartgym.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - smartgym_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  smartgym_network:
+    driver: bridge 
