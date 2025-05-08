@@ -10,9 +10,11 @@ class OccupancyRecordModel extends OccupancyRecord {
 
   factory OccupancyRecordModel.fromJson(Map<String, dynamic> json) {
     return OccupancyRecordModel(
-      id: json['id'],
-      timestamp: DateTime.parse(json['timestamp']),
-      count: json['count'],
+      id: json['id'] != null ? (json['id'] is String ? int.parse(json['id']) : json['id']) : null,
+      timestamp: json['timestamp'] != null 
+          ? DateTime.parse(json['timestamp']) 
+          : DateTime.now(),
+      count: json['count'] ?? 0,
       sensorReadings: json['sensor_readings'],
     );
   }

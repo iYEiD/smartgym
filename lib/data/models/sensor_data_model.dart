@@ -17,12 +17,14 @@ class SensorDataModel extends SensorData {
         : <bool>[];
 
     return SensorDataModel(
-      id: json['id'],
-      timestamp: DateTime.parse(json['timestamp']),
+      id: json['id'] != null ? (json['id'] is String ? int.parse(json['id']) : json['id']) : null,
+      timestamp: json['timestamp'] != null 
+          ? DateTime.parse(json['timestamp']) 
+          : DateTime.now(),
       lightLevel: json['light_level'],
       temperature: json['temperature'],
       humidity: json['humidity'],
-      motionDetected: json['motion_detected'],
+      motionDetected: json['motion_detected'] ?? false,
       parkingSpots: parkingSpotsData,
     );
   }

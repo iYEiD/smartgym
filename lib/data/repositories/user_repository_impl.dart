@@ -11,11 +11,32 @@ class UserRepositoryImpl implements UserRepository {
 
   @override
   Future<List<User>> getAllUsers() async {
-    final results = await _databaseService.query(
-      'SELECT * FROM users ORDER BY last_name, first_name',
-    );
-    
-    return results.map((data) => UserModel.fromJson(data)).toList();
+    try {
+      final results = await _databaseService.query(
+        'SELECT * FROM users ORDER BY last_name, first_name',
+      );
+      
+      print('User query results count: ${results.length}');
+      
+      // Debug each result to find nulls
+      List<User> users = [];
+      for (var i = 0; i < results.length; i++) {
+        final data = results[i];
+        print('Processing user $i: id=${data['id']}, firstName=${data['first_name']}, lastName=${data['last_name']}');
+        try {
+          final user = UserModel.fromJson(data);
+          users.add(user);
+        } catch (e) {
+          print('Error processing user at index $i: $e');
+          print('Raw data: $data');
+        }
+      }
+      
+      return users;
+    } catch (e) {
+      print('Error in getAllUsers: $e');
+      rethrow;
+    }
   }
 
   @override

@@ -11,9 +11,11 @@ class CheckInLogModel extends CheckInLog {
 
   factory CheckInLogModel.fromJson(Map<String, dynamic> json) {
     return CheckInLogModel(
-      id: json['id'],
-      userId: json['user_id'],
-      checkInTime: DateTime.parse(json['check_in_time']),
+      id: json['id'] != null ? (json['id'] is String ? int.parse(json['id']) : json['id']) : null,
+      userId: json['user_id'] != null ? (json['user_id'] is int ? json['user_id'].toString() : json['user_id']) : '',
+      checkInTime: json['check_in_time'] != null 
+          ? DateTime.parse(json['check_in_time']) 
+          : DateTime.now(),
       checkoutTime: json['checkout_time'] != null 
           ? DateTime.parse(json['checkout_time']) 
           : null,
