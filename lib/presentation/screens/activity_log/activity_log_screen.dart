@@ -335,15 +335,65 @@ class _ActivityLogScreenState extends ConsumerState<ActivityLogScreen> {
       // Apply status filter
       switch (_selectedFilter) {
         case 'Active':
-          return activity.isActive;
+          if (!activity.isActive) return false;
+          break;
         case 'Completed':
-          return !activity.isActive;
+          if (activity.isActive) return false;
+          break;
+      }
+      
+      // Apply time range filter
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final activityDate = DateTime(
+        activity.checkInTime.year,
+        activity.checkInTime.month,
+        activity.checkInTime.day,
+      );
+      
+      switch (_selectedTimeRange) {
+        case 'Today':
+          return activityDate.isAtSameMomentAs(today);
+        
+        case 'Yesterday':
+          final yesterday = today.subtract(const Duration(days: 1));
+          return activityDate.isAtSameMomentAs(yesterday);
+        
+        case 'This Week':
+          // Get the start of the week (assuming week starts on Monday)
+          final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+          return activityDate.isAfter(startOfWeek.subtract(const Duration(days: 1))) && 
+                 activityDate.isBefore(today.add(const Duration(days: 1)));
+        
+        case 'This Month':
+          final startOfMonth = DateTime(now.year, now.month, 1);
+          final nextMonth = now.month < 12 
+              ? DateTime(now.year, now.month + 1, 1)
+              : DateTime(now.year + 1, 1, 1);
+          return activityDate.isAfter(startOfMonth.subtract(const Duration(days: 1))) && 
+                 activityDate.isBefore(nextMonth);
+        
+        case 'Custom':
+          if (_customDateRange != null) {
+            final customStart = DateTime(
+              _customDateRange!.start.year,
+              _customDateRange!.start.month,
+              _customDateRange!.start.day,
+            );
+            final customEnd = DateTime(
+              _customDateRange!.end.year,
+              _customDateRange!.end.month,
+              _customDateRange!.end.day,
+              23, 59, 59, // End of day
+            );
+            return activity.checkInTime.isAfter(customStart.subtract(const Duration(seconds: 1))) && 
+                   activity.checkInTime.isBefore(customEnd.add(const Duration(seconds: 1)));
+          }
+          return true;
+          
         default:
           return true;
       }
-      
-      // Time filter logic would go here
-      // This would use _selectedTimeRange and _customDateRange
     }).toList();
     
     if (filteredActivities.isEmpty) {
@@ -375,6 +425,9 @@ class _ActivityLogScreenState extends ConsumerState<ActivityLogScreen> {
         ),
       );
     }
+    
+    // Sort activities by check-in time (most recent first)
+    filteredActivities.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
     
     return RefreshIndicator(
       onRefresh: () async {
