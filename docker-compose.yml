@@ -22,20 +22,20 @@ services:
     networks:
       - smartgym_network
       
-  # MQTT broker for sensor data
-  mosquitto:
-    image: eclipse-mosquitto:latest
-    container_name: smartgym_mqtt
-    ports:
-      - "1883:1883"  # MQTT
-      - "9001:9001"  # WebSockets
-    volumes:
-      - mosquitto_data:/mosquitto/data
-      - mosquitto_log:/mosquitto/log
-      - ./mosquitto/config:/mosquitto/config
-    restart: unless-stopped
-    networks:
-      - smartgym_network
+  # MQTT broker for sensor data - COMMENTED OUT TO USE ONLINE BROKER
+  # mosquitto:
+  #   image: eclipse-mosquitto:latest
+  #   container_name: smartgym_mqtt
+  #   ports:
+  #     - "1883:1883"  # MQTT
+  #     - "9001:9001"  # WebSockets
+  #   volumes:
+  #     - mosquitto_data:/mosquitto/data
+  #     - mosquitto_log:/mosquitto/log
+  #     - ./mosquitto/config:/mosquitto/config
+  #   restart: unless-stopped
+  #   networks:
+  #     - smartgym_network
       
   # Optional: Add a pgAdmin container for database management
   pgadmin:
@@ -55,10 +55,11 @@ services:
 volumes:
   postgres_data:
     driver: local
-  mosquitto_data:
-    driver: local
-  mosquitto_log:
-    driver: local
+  # Commented out since we're not using local MQTT broker
+  # mosquitto_data:
+  #   driver: local
+  # mosquitto_log:
+  #   driver: local
 
 networks:
   smartgym_network:

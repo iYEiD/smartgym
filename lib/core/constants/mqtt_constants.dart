@@ -11,11 +11,12 @@ class MqttConstants {
   // Client identifiers
   static const String clientIdentifier = 'smartgym_app_';
   
-  // Topics
-  static const String sensorDataTopic = "UA/IOT/sensorData";
-  static const String rfidRegisterTopic = "UA/IOT/registerCard";
-  static const String rfidAuthTopic = "UA/IOT/authCard";
-  static const String occupancyTopic = "UA/IOT/occupancy";
+  // Topics - using unique prefix to avoid conflicts on public broker
+  static const String topicPrefix = "ua/edu/lb/iot2025";
+  static const String sensorDataTopic = "$topicPrefix/sensorData";
+  static const String rfidRegisterTopic = "$topicPrefix/registerCard";
+  static const String rfidAuthTopic = "$topicPrefix/authCard";
+  static const String occupancyTopic = "$topicPrefix/occupancy";
   
   // QOS Levels
   static const int qosAtMostOnce = 0;
