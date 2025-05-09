@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smartgymai/domain/entities/check_in_log.dart';
 import 'package:smartgymai/domain/entities/user.dart';
 import 'package:smartgymai/providers/repository_providers.dart';
+import 'package:smartgymai/providers/sensors_provider.dart';
 
 // State class for activity logs
 class ActivitiesState {
@@ -116,6 +117,9 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
       
       // Refresh activities to update the UI
       await fetchActivities();
+      
+      // Refresh sensors data to update occupancy information
+      await _ref.read(sensorsProvider.notifier).refreshOccupancyData();
     } catch (e) {
       state = state.copyWith(
         errorMessage: 'Failed to check in user: ${e.toString()}',
@@ -133,6 +137,9 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
       
       // Refresh activities to update the UI
       await fetchActivities();
+      
+      // Refresh sensors data to update occupancy information
+      await _ref.read(sensorsProvider.notifier).refreshOccupancyData();
     } catch (e) {
       state = state.copyWith(
         errorMessage: 'Failed to check out user: ${e.toString()}',

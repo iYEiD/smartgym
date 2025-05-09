@@ -2,6 +2,7 @@ import 'package:smartgymai/data/models/check_in_log_model.dart';
 import 'package:smartgymai/data/services/database_service.dart';
 import 'package:smartgymai/domain/entities/check_in_log.dart';
 import 'package:smartgymai/domain/repositories/check_in_repository.dart';
+import 'package:smartgymai/domain/entities/occupancy_record.dart';
 
 class CheckInRepositoryImpl implements CheckInRepository {
   final DatabaseService _databaseService;
@@ -104,6 +105,9 @@ class CheckInRepositoryImpl implements CheckInRepository {
         'check_in_time': checkInModel.checkInTime.toIso8601String(),
       },
     );
+
+    // Update occupancy records
+    await _updateOccupancyRecords();
   }
 
   @override
@@ -175,5 +179,42 @@ class CheckInRepositoryImpl implements CheckInRepository {
         'check_out_time': checkoutTime.toIso8601String(),
       },
     );
+
+    // Update occupancy records
+    await _updateOccupancyRecords();
+  }
+
+  // Helper method to update occupancy records based on active check-ins
+  Future<void> _updateOccupancyRecords() async {
+    try {
+      // Count active check-ins
+      final activeCheckInsResult = await _databaseService.query(
+        '''
+        SELECT COUNT(*) as active_count
+        FROM check_in_logs
+        WHERE check_out_time IS NULL
+        '''
+      );
+      
+      final int activeCount = activeCheckInsResult.first['active_count'] as int;
+      
+      // Create a new occupancy record
+      await _databaseService.execute(
+        '''
+        INSERT INTO occupancy_records (
+          timestamp, count, sensor_readings
+        ) VALUES (
+          @timestamp, @count, @sensor_readings
+        )
+        ''',
+        substitutionValues: {
+          'timestamp': DateTime.now().toIso8601String(),
+          'count': activeCount,
+          'sensor_readings': null, // No sensor readings for manual updates
+        },
+      );
+    } catch (e) {
+      // Silently handle errors to prevent cascading failures
+    }
   }
 } 

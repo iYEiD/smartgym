@@ -10,11 +10,25 @@ import 'package:smartgymai/presentation/widgets/parking_spot_indicator.dart';
 import 'package:smartgymai/presentation/widgets/sensor_value_card.dart';
 import 'package:smartgymai/providers/sensors_provider.dart';
 
-class AnalyticsDashboardScreen extends ConsumerWidget {
+class AnalyticsDashboardScreen extends ConsumerStatefulWidget {
   const AnalyticsDashboardScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AnalyticsDashboardScreen> createState() => _AnalyticsDashboardScreenState();
+}
+
+class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh data when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(sensorsProvider.notifier).refreshOccupancyData();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Watch the sensors provider state
     final sensorsState = ref.watch(sensorsProvider);
     
@@ -29,8 +43,7 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
             onPressed: () {
               // Refresh data
-              ref.read(sensorsProvider.notifier).fetchLatestData();
-              ref.read(sensorsProvider.notifier).fetchOccupancyHistory();
+              ref.read(sensorsProvider.notifier).refreshOccupancyData();
             },
           ),
         ],
@@ -38,8 +51,7 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           // Pull to refresh functionality
-          await ref.read(sensorsProvider.notifier).fetchLatestData();
-          await ref.read(sensorsProvider.notifier).fetchOccupancyHistory();
+          await ref.read(sensorsProvider.notifier).refreshOccupancyData();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),

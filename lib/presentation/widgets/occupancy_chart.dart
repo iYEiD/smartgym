@@ -136,9 +136,30 @@ class OccupancyChart extends StatelessWidget {
   }
 
   LineChartData _buildLineChartData(BuildContext context) {
+    // Check if records are empty
+    if (records.isEmpty) {
+      // Return a default empty chart
+      return LineChartData(
+        gridData: FlGridData(show: false),
+        titlesData: FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [],
+      );
+    }
+    
     // Sort records by timestamp
     final sortedRecords = List<OccupancyRecord>.from(records)
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    if (sortedRecords.isEmpty) {
+      // Return a default empty chart
+      return LineChartData(
+        gridData: FlGridData(show: false),
+        titlesData: FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [],
+      );
+    }
 
     // Create spots for line chart
     final spots = sortedRecords.map((record) {
