@@ -20,15 +20,43 @@ class CheckInLogModel extends CheckInLog {
     // Debug print to see what's coming in
     // print('CheckInLogModel.fromJson: $json');
     
+    // Handle ID which could be String, int or null
+    int? id;
+    if (json['id'] != null) {
+      id = json['id'] is String ? int.parse(json['id']) : json['id'] as int;
+    }
+    
+    // Handle user_id which could be String, int or null
+    String userId = '';
+    if (json['user_id'] != null) {
+      userId = json['user_id'] is int ? json['user_id'].toString() : json['user_id'] as String;
+    }
+    
+    // Handle check_in_time which could be String or DateTime
+    DateTime checkInTime;
+    final checkInTimeRaw = json['check_in_time'];
+    if (checkInTimeRaw is DateTime) {
+      checkInTime = checkInTimeRaw;
+    } else if (checkInTimeRaw is String) {
+      checkInTime = DateTime.parse(checkInTimeRaw);
+    } else {
+      checkInTime = DateTime.now();
+    }
+    
+    // Handle check_out_time which could be String or DateTime
+    DateTime? checkoutTime;
+    final checkoutTimeRaw = json['check_out_time'] ?? json['checkout_time']; // Handle both column names
+    if (checkoutTimeRaw is DateTime) {
+      checkoutTime = checkoutTimeRaw;
+    } else if (checkoutTimeRaw is String) {
+      checkoutTime = DateTime.parse(checkoutTimeRaw);
+    }
+    
     return CheckInLogModel(
-      id: json['id'] != null ? (json['id'] is String ? int.parse(json['id']) : json['id']) : null,
-      userId: json['user_id'] != null ? (json['user_id'] is int ? json['user_id'].toString() : json['user_id']) : '',
-      checkInTime: json['check_in_time'] != null 
-          ? DateTime.parse(json['check_in_time']) 
-          : DateTime.now(),
-      checkoutTime: json['check_out_time'] != null 
-          ? DateTime.parse(json['check_out_time']) 
-          : null,
+      id: id,
+      userId: userId,
+      checkInTime: checkInTime,
+      checkoutTime: checkoutTime,
       durationMinutes: json['duration_minutes'],
       firstName: json['first_name'],
       lastName: json['last_name'],

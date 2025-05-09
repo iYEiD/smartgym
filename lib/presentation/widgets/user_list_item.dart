@@ -136,101 +136,115 @@ class UserListItem extends StatelessWidget {
     
     if (user.isCurrentlyCheckedIn) {
       final checkInTime = user.lastCheckIn;
-      return Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: const BoxDecoration(
-              color: AppTheme.occupancyLowColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Currently Checked In',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.occupancyLowColor,
-                    ),
+      return Expanded(
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: AppTheme.occupancyLowColor,
+                shape: BoxShape.circle,
               ),
-              if (checkInTime != null)
-                Text(
-                  'Since ${dateFormat.format(checkInTime)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.onSurfaceColor.withOpacity(0.7),
-                      ),
-                ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Currently Checked In',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.occupancyLowColor,
+                        ),
+                  ),
+                  if (checkInTime != null)
+                    Text(
+                      'Since ${dateFormat.format(checkInTime)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.onSurfaceColor.withOpacity(0.7),
+                          ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     } else {
       final lastActivity = user.lastCheckout ?? user.lastCheckIn;
       
       if (lastActivity == null) {
-        return Text(
-          'No recent activity',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.onSurfaceColor.withOpacity(0.7),
-              ),
+        return Expanded(
+          child: Text(
+            'No recent activity',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.onSurfaceColor.withOpacity(0.7),
+                ),
+          ),
         );
       }
       
-      return Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: Colors.grey[400],
-              shape: BoxShape.circle,
+      return Expanded(
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Last Activity',
-                style: Theme.of(context).textTheme.bodyMedium,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Last Activity',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  Text(
+                    dateFormat.format(lastActivity),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.onSurfaceColor.withOpacity(0.7),
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              Text(
-                dateFormat.format(lastActivity),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.onSurfaceColor.withOpacity(0.7),
-                    ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       );
     }
   }
 
   Widget _buildActionButtons(BuildContext context) {
     if (user.isCurrentlyCheckedIn) {
-      return ElevatedButton.icon(
+      return ElevatedButton(
         onPressed: onCheckout,
-        icon: const Icon(Icons.logout),
-        label: const Text('Check Out'),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.occupancyHighColor,
           foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          minimumSize: const Size(0, 36),
         ),
+        child: const Text('Check Out'),
       );
     } else {
-      return ElevatedButton.icon(
+      return ElevatedButton(
         onPressed: onCheckIn,
-        icon: const Icon(Icons.login),
-        label: const Text('Check In'),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.occupancyLowColor,
           foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          minimumSize: const Size(0, 36),
         ),
+        child: const Text('Check In'),
       );
     }
   }
