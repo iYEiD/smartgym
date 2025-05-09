@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smartgymai/core/constants/mqtt_constants.dart';
 import 'package:smartgymai/core/theme/app_theme.dart';
 import 'package:smartgymai/domain/entities/user.dart';
+import 'package:smartgymai/providers/users_provider.dart';
+import 'package:smartgymai/providers/repository_providers.dart';
 import 'package:uuid/uuid.dart';
 
 class UserRegistrationScreen extends ConsumerStatefulWidget {
@@ -75,6 +77,47 @@ class _UserRegistrationScreenState extends ConsumerState<UserRegistrationScreen>
           // Simulate receiving an RFID
           _onRfidReceived('${const Uuid().v4().substring(0, 8)}');
         });
+
+        //below is for implementation
+    //         // Get the MQTT service and subscribe to the RFID register topic
+    // final mqttService = ref.read(mqttServiceProvider);
+    
+    // // Connect to MQTT if not already connected
+    // mqttService.connect().then((_) {
+    //   // Subscribe to the RFID register topic
+    //   _rfidSubscription = mqttService.subscribeTo(MqttConstants.rfidRegisterTopic)
+    //       .listen((data) {
+    //         if (data.containsKey(MqttConstants.rfidIdField)) {
+    //           final rfidId = data[MqttConstants.rfidIdField];
+    //           if (rfidId != null && rfidId is String && rfidId.isNotEmpty) {
+    //             _onRfidReceived(rfidId);
+    //           }
+    //         }
+    //       });
+      
+    //   // Show a message that we're waiting for an RFID card
+    //   if (mounted) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       const SnackBar(
+    //         content: Text('Waiting for RFID card scan...'),
+    //         duration: Duration(seconds: 2),
+    //       ),
+    //     );
+    //   }
+    // }).catchError((error) {
+    //   // Show error if MQTT connection fails
+    //   if (mounted) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       SnackBar(
+    //         content: Text('Failed to connect to MQTT: $error'),
+    //         backgroundColor: Colors.red,
+    //       ),
+    //     );
+    //     setState(() {
+    //       _isWaitingForRfid = false;
+    //     });
+    //   }
+    // });
   }
 
   void _stopListeningForRfid() {
@@ -98,18 +141,46 @@ class _UserRegistrationScreenState extends ConsumerState<UserRegistrationScreen>
   }
 
   Future<void> _checkRfidExists(String rfidId) async {
-    // In a real app, this would query your repository
-    // For this demo, we'll simulate that the RFID is new
-    
-    // Simulate a check
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // For demo purposes, let's assume it's a new RFID
-    if (mounted) {
+    try {
+      // Check if a user with this RFID already exists
+      final userRepository = ref.read(userRepositoryProvider);
+      final existingUser = await userRepository.getUserById(rfidId);
+      
+      if (!mounted) return;
+      
+      if (existingUser != null) {
+        // RFID is already registered
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('RFID card is already registered to ${existingUser.fullName}'),
+            backgroundColor: Colors.orange,
+            action: SnackBarAction(
+              label: 'Reset',
+              onPressed: () {
+                setState(() {
+                  _rfidId = null;
+                });
+                _startListeningForRfid();
+              },
+            ),
+          ),
+        );
+      } else {
+        // New RFID
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New RFID card detected: $_rfidId'),
+            backgroundColor: AppTheme.infoColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('New RFID card detected: $_rfidId'),
-          backgroundColor: AppTheme.infoColor,
+          content: Text('Error checking RFID: ${e.toString()}'),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -124,37 +195,58 @@ class _UserRegistrationScreenState extends ConsumerState<UserRegistrationScreen>
       _isSubmitting = true;
     });
     
-    // In a real app, this would create a new user in your repository
-    // For this demo, we'll simulate the registration process
-    
-    final user = User(
-      id: _rfidId!,
-      firstName: _firstNameController.text,
-      lastName: _lastNameController.text,
-      email: _emailController.text,
-      phone: _phoneController.text,
-      membershipType: _membershipType,
-      registrationDate: DateTime.now(),
-    );
-    
-    // Simulate registration delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    setState(() {
-      _isSubmitting = false;
-    });
-    
-    if (!mounted) return;
-    
-    // Show success message and return to the previous screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('User ${user.fullName} registered successfully'),
-        backgroundColor: AppTheme.successColor,
-      ),
-    );
-    
-    Navigator.of(context).pop(user);
+    try {
+      // Ensure the RFID ID is not empty
+      if (_rfidId == null || _rfidId!.isEmpty) {
+        throw Exception('RFID ID cannot be empty');
+      }
+      
+      print('Creating user with RFID: $_rfidId');
+      
+      // Create a new user entity
+      final user = User(
+        id: _rfidId!,
+        firstName: _firstNameController.text,
+        lastName: _lastNameController.text,
+        email: _emailController.text.isEmpty ? null : _emailController.text,
+        phone: _phoneController.text.isEmpty ? null : _phoneController.text,
+        membershipType: _membershipType,
+        registrationDate: DateTime.now(),
+      );
+      
+      // Add the user to the database using the users provider
+      await ref.read(usersProvider.notifier).addUser(user);
+      
+      if (!mounted) return;
+      
+      // Show success message and return to the previous screen
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('User ${user.fullName} registered successfully'),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+      
+      Navigator.of(context).pop(user);
+    } catch (e) {
+      print('Error in _submitForm: $e');
+      
+      if (!mounted) return;
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error registering user: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   void _resetForm() {

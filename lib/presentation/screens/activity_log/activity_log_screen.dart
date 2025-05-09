@@ -6,6 +6,7 @@ import 'package:smartgymai/domain/entities/check_in_log.dart';
 import 'package:smartgymai/domain/entities/user.dart';
 import 'package:smartgymai/providers/activities_provider.dart';
 import 'package:smartgymai/providers/users_provider.dart';
+import 'package:smartgymai/data/models/check_in_log_model.dart';
 
 class ActivityLogScreen extends ConsumerStatefulWidget {
   const ActivityLogScreen({Key? key}) : super(key: key);
@@ -302,22 +303,29 @@ class _ActivityLogScreenState extends ConsumerState<ActivityLogScreen> {
   }) {
     // Apply filters and search
     final filteredActivities = activities.where((activity) {
-      // Get the associated user for this activity
-      final user = users.firstWhere(
-        (u) => u.id == activity.userId,
-        orElse: () => User(
-          id: activity.userId,
-          firstName: 'Unknown', 
-          lastName: 'User',
-          membershipType: 'Unknown',
-          registrationDate: DateTime.now(),
-        ),
-      );
+      // Get user name from activity if it's a CheckInLogModel with firstName/lastName
+      String fullName = 'Unknown User';
+      if (activity is CheckInLogModel && activity.firstName != null && activity.lastName != null) {
+        fullName = activity.fullName;
+      } else {
+        // Fallback to looking up user from the users list
+        final user = users.firstWhere(
+          (u) => u.id == activity.userId,
+          orElse: () => User(
+            id: activity.userId,
+            firstName: 'Unknown', 
+            lastName: 'User',
+            membershipType: 'Unknown',
+            registrationDate: DateTime.now(),
+          ),
+        );
+        fullName = user.fullName;
+      }
       
       // Apply search
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        final matchesName = user.fullName.toLowerCase().contains(query);
+        final matchesName = fullName.toLowerCase().contains(query);
         
         if (!matchesName) {
           return false;
@@ -398,6 +406,19 @@ class _ActivityLogScreenState extends ConsumerState<ActivityLogScreen> {
   Widget _buildActivityItem(CheckInLog activity, User user) {
     final theme = Theme.of(context);
     
+    // Get user information directly from CheckInLogModel if available
+    String fullName = user.fullName;
+    String membershipType = user.membershipType;
+    
+    if (activity is CheckInLogModel) {
+      if (activity.firstName != null && activity.lastName != null) {
+        fullName = activity.fullName;
+      }
+      if (activity.membershipType != null) {
+        membershipType = activity.membershipType!;
+      }
+    }
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
@@ -426,16 +447,16 @@ class _ActivityLogScreenState extends ConsumerState<ActivityLogScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user.fullName,
+                        fullName,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        user.membershipType,
+                        membershipType,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _getMembershipColor(user.membershipType),
+                          color: _getMembershipColor(membershipType),
                         ),
                       ),
                     ],

@@ -109,11 +109,24 @@ class UsersNotifier extends StateNotifier<UsersState> {
 
   Future<void> addUser(User user) async {
     try {
+      print('Adding user: ${user.id}, ${user.firstName} ${user.lastName}');
+      
+      state = state.copyWith(isLoading: true, errorMessage: null);
+      
       final userRepository = _ref.read(userRepositoryProvider);
       await userRepository.addUser(user);
-      await fetchUsers(); // Refresh the list
+      
+      print('User added successfully, fetching updated user list');
+      
+      // Refresh the list after adding
+      final users = await userRepository.getAllUsers();
+      
+      state = state.copyWith(users: users, isLoading: false);
+      print('User list updated: ${users.length} users');
     } catch (e) {
+      print('Error adding user: $e');
       state = state.copyWith(
+        isLoading: false,
         errorMessage: 'Failed to add user: ${e.toString()}'
       );
     }

@@ -12,10 +12,10 @@ class CheckInRepositoryImpl implements CheckInRepository {
   Future<List<CheckInLog>> getAllCheckInLogs() async {
     final results = await _databaseService.query(
       '''
-      SELECT cl.*, 
-        u.first_name, u.last_name, u.membership_type
+      SELECT cl.*,
+        u.first_name, u.last_name, u.membership_type, u.id as user_id
       FROM check_in_logs cl
-      JOIN users u ON cl.user_id = u.id
+      LEFT JOIN users u ON cl.user_id = u.id
       ORDER BY cl.check_in_time DESC
       ''',
     );
@@ -41,10 +41,10 @@ class CheckInRepositoryImpl implements CheckInRepository {
   Future<List<CheckInLog>> getRecentCheckInLogs(int limit) async {
     final results = await _databaseService.query(
       '''
-      SELECT cl.*, 
-        u.first_name, u.last_name, u.membership_type
+      SELECT cl.*,
+        u.first_name, u.last_name, u.membership_type, u.id as user_id
       FROM check_in_logs cl
-      JOIN users u ON cl.user_id = u.id
+      LEFT JOIN users u ON cl.user_id = u.id
       ORDER BY cl.check_in_time DESC
       LIMIT @limit
       ''',
@@ -58,11 +58,11 @@ class CheckInRepositoryImpl implements CheckInRepository {
   Future<List<CheckInLog>> getActiveCheckIns() async {
     final results = await _databaseService.query(
       '''
-      SELECT cl.*, 
-        u.first_name, u.last_name, u.membership_type
+      SELECT cl.*,
+        u.first_name, u.last_name, u.membership_type, u.id as user_id
       FROM check_in_logs cl
-      JOIN users u ON cl.user_id = u.id
-      WHERE cl.checkout_time IS NULL
+      LEFT JOIN users u ON cl.user_id = u.id
+      WHERE cl.check_out_time IS NULL
       ORDER BY cl.check_in_time DESC
       ''',
     );
@@ -79,15 +79,15 @@ class CheckInRepositoryImpl implements CheckInRepository {
     await _databaseService.execute(
       '''
       INSERT INTO check_in_logs (
-        user_id, check_in_time, checkout_time, duration_minutes
+        user_id, check_in_time, check_out_time, duration_minutes
       ) VALUES (
-        @user_id, @check_in_time, @checkout_time, @duration_minutes
+        @user_id, @check_in_time, @check_out_time, @duration_minutes
       )
       ''',
       substitutionValues: {
         'user_id': checkInModel.userId,
         'check_in_time': checkInModel.checkInTime.toIso8601String(),
-        'checkout_time': checkInModel.checkoutTime?.toIso8601String(),
+        'check_out_time': checkInModel.checkoutTime?.toIso8601String(),
         'duration_minutes': checkInModel.durationMinutes,
       },
     );
@@ -115,13 +115,13 @@ class CheckInRepositoryImpl implements CheckInRepository {
     await _databaseService.execute(
       '''
       UPDATE check_in_logs 
-      SET checkout_time = @checkout_time,
+      SET check_out_time = @check_out_time,
           duration_minutes = @duration_minutes
       WHERE id = @id
       ''',
       substitutionValues: {
         'id': checkInModel.id,
-        'checkout_time': checkInModel.checkoutTime?.toIso8601String(),
+        'check_out_time': checkInModel.checkoutTime?.toIso8601String(),
         'duration_minutes': checkInModel.durationMinutes,
       },
     );
@@ -134,7 +134,7 @@ class CheckInRepositoryImpl implements CheckInRepository {
       '''
       SELECT * FROM check_in_logs 
       WHERE user_id = @user_id 
-        AND checkout_time IS NULL
+        AND check_out_time IS NULL
       ORDER BY check_in_time DESC
       LIMIT 1
       ''',
@@ -152,13 +152,13 @@ class CheckInRepositoryImpl implements CheckInRepository {
     await _databaseService.execute(
       '''
       UPDATE check_in_logs 
-      SET checkout_time = @checkout_time,
+      SET check_out_time = @check_out_time,
           duration_minutes = @duration_minutes
       WHERE id = @id
       ''',
       substitutionValues: {
         'id': checkIn.id,
-        'checkout_time': checkoutTime.toIso8601String(),
+        'check_out_time': checkoutTime.toIso8601String(),
         'duration_minutes': durationMinutes,
       },
     );
@@ -167,12 +167,12 @@ class CheckInRepositoryImpl implements CheckInRepository {
     await _databaseService.execute(
       '''
       UPDATE users 
-      SET last_checkout = @checkout_time
+      SET last_checkout = @check_out_time
       WHERE id = @user_id
       ''',
       substitutionValues: {
         'user_id': userId,
-        'checkout_time': checkoutTime.toIso8601String(),
+        'check_out_time': checkoutTime.toIso8601String(),
       },
     );
   }

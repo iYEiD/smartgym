@@ -38,7 +38,18 @@ class UserModel extends User {
       final membershipType = _safeGet<String>(json, 'membership_type') ?? 'Basic';
       final lastCheckInStr = _safeGet<String>(json, 'last_check_in');
       final lastCheckoutStr = _safeGet<String>(json, 'last_checkout');
-      final registrationDateStr = _safeGet<String>(json, 'registration_date');
+      
+      // Handle registration_date which could be String or DateTime
+      DateTime registrationDate;
+      final registrationDateRaw = json['registration_date'];
+      if (registrationDateRaw is DateTime) {
+        registrationDate = registrationDateRaw;
+      } else if (registrationDateRaw is String) {
+        registrationDate = DateTime.parse(registrationDateRaw);
+      } else {
+        registrationDate = DateTime.now();
+      }
+      
       final notes = _safeGet<String>(json, 'notes');
       
       // Convert ID to string if needed
@@ -53,9 +64,7 @@ class UserModel extends User {
         membershipType: membershipType,
         lastCheckIn: lastCheckInStr != null ? DateTime.parse(lastCheckInStr) : null,
         lastCheckout: lastCheckoutStr != null ? DateTime.parse(lastCheckoutStr) : null,
-        registrationDate: registrationDateStr != null 
-            ? DateTime.parse(registrationDateStr) 
-            : DateTime.now(),
+        registrationDate: registrationDate,
         notes: notes,
       );
     } catch (e) {

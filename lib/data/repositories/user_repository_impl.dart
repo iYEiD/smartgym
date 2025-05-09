@@ -55,37 +55,48 @@ class UserRepositoryImpl implements UserRepository {
 
   @override
   Future<void> addUser(User user) async {
-    final userModel = user is UserModel 
-        ? user 
-        : UserModel.fromEntity(user);
-    
-    final userId = user.id.isEmpty ? const Uuid().v4() : user.id;
-    
-    await _databaseService.execute(
-      '''
-      INSERT INTO users (
-        id, first_name, last_name, email, phone, 
-        membership_type, last_check_in, last_checkout, 
-        registration_date, notes
-      ) VALUES (
-        @id, @first_name, @last_name, @email, @phone, 
-        @membership_type, @last_check_in, @last_checkout, 
-        @registration_date, @notes
-      )
-      ''',
-      substitutionValues: {
-        'id': userId,
-        'first_name': userModel.firstName,
-        'last_name': userModel.lastName,
-        'email': userModel.email,
-        'phone': userModel.phone,
-        'membership_type': userModel.membershipType,
-        'last_check_in': userModel.lastCheckIn?.toIso8601String(),
-        'last_checkout': userModel.lastCheckout?.toIso8601String(),
-        'registration_date': userModel.registrationDate.toIso8601String(),
-        'notes': userModel.notes,
-      },
-    );
+    try {
+      final userModel = user is UserModel 
+          ? user 
+          : UserModel.fromEntity(user);
+      
+      // Always generate a new UUID if the ID is empty
+      final userId = user.id.isEmpty ? const Uuid().v4() : user.id;
+      
+      print('Adding user to database with ID: $userId');
+      print('User data: ${userModel.firstName} ${userModel.lastName}, ${userModel.membershipType}');
+      
+      await _databaseService.execute(
+        '''
+        INSERT INTO users (
+          id, first_name, last_name, email, phone, 
+          membership_type, last_check_in, last_checkout, 
+          registration_date, notes
+        ) VALUES (
+          @id, @first_name, @last_name, @email, @phone, 
+          @membership_type, @last_check_in, @last_checkout, 
+          @registration_date, @notes
+        )
+        ''',
+        substitutionValues: {
+          'id': userId,
+          'first_name': userModel.firstName,
+          'last_name': userModel.lastName,
+          'email': userModel.email,
+          'phone': userModel.phone,
+          'membership_type': userModel.membershipType,
+          'last_check_in': userModel.lastCheckIn?.toIso8601String(),
+          'last_checkout': userModel.lastCheckout?.toIso8601String(),
+          'registration_date': userModel.registrationDate.toIso8601String(),
+          'notes': userModel.notes,
+        },
+      );
+      
+      print('User added successfully with ID: $userId');
+    } catch (e) {
+      print('Error in addUser: $e');
+      throw Exception('Failed to add user: $e');
+    }
   }
 
   @override

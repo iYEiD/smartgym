@@ -236,15 +236,16 @@ class UserListItem extends StatelessWidget {
   }
 
   String _getInitials() {
-    final List<String> names = user.fullName.split(' ');
+    final List<String> names = user.fullName.trim().split(' ').where((s) => s.isNotEmpty).toList();
     String initials = '';
     
     if (names.length >= 2) {
-      initials = names[0][0] + names[1][0];
-    } else if (names.isNotEmpty) {
+      initials = (names[0].isNotEmpty ? names[0][0] : '') + 
+                 (names[1].isNotEmpty ? names[1][0] : '');
+    } else if (names.isNotEmpty && names[0].isNotEmpty) {
       initials = names[0][0];
     }
     
-    return initials.toUpperCase();
+    return initials.isEmpty ? 'U' : initials.toUpperCase();
   }
 } 

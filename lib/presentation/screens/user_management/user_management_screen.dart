@@ -280,18 +280,29 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   }
 
   void _navigateToUserRegistration(BuildContext context) async {
-    // Navigate to registration screen and refresh users when returning
-    final result = await Navigator.push<User?>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const UserRegistrationScreen(),
-      ),
-    );
-    
-    if (result != null) {
-      // User was registered, refresh the list
+    try {
+      // Navigate to registration screen and refresh users when returning
+      final result = await Navigator.push<User?>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const UserRegistrationScreen(),
+        ),
+      );
+      
+      if (result != null && mounted) {
+        // User was registered, refresh the list
+        print('User registered, refreshing list: ${result.id}, ${result.fullName}');
+        await ref.read(usersProvider.notifier).fetchUsers();
+      }
+    } catch (e) {
+      print('Error in _navigateToUserRegistration: $e');
       if (mounted) {
-        ref.read(usersProvider.notifier).fetchUsers();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error refreshing user list: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
