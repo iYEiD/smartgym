@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:smartgymai/core/constants/mqtt_constants.dart';
 import 'package:smartgymai/data/models/occupancy_record_model.dart';
@@ -10,18 +11,21 @@ import 'package:smartgymai/data/services/mqtt_service.dart';
 import 'package:smartgymai/domain/entities/occupancy_record.dart';
 import 'package:smartgymai/domain/entities/sensor_data.dart';
 import 'package:smartgymai/domain/repositories/sensor_repository.dart';
+import 'package:smartgymai/providers/repository_providers.dart';
+import 'package:smartgymai/domain/entities/check_in_log.dart';
 
 class SensorRepositoryImpl implements SensorRepository {
   final DatabaseService _databaseService;
   final MqttService _mqttService;
   final Logger _logger = Logger();
+  final Ref _ref;
   
   final _sensorDataStreamController = StreamController<SensorData>.broadcast();
   final _occupancyStreamController = StreamController<OccupancyRecord>.broadcast();
   
   int? _currentOccupancy = 0;
   
-  SensorRepositoryImpl(this._databaseService, this._mqttService) {
+  SensorRepositoryImpl(this._databaseService, this._mqttService, this._ref) {
     _initialize();
   }
   
@@ -78,6 +82,22 @@ class SensorRepositoryImpl implements SensorRepository {
           await _updateUIWithLatestData();
         } catch (e) {
           _logger.e('Error processing sensor data: $e');
+        }
+      });
+      
+      // Subscribe to member card swipe topic for automatic check-in/out
+      _mqttService.subscribeTo(MqttConstants.memberCardSwipeTopic).listen((data) async {
+        try {
+          _logger.i('Member card swipe data received: $data');
+          
+          if (data.containsKey(MqttConstants.rfidIdField)) {
+            final rfidId = data[MqttConstants.rfidIdField];
+            if (rfidId != null && rfidId is String && rfidId.isNotEmpty) {
+              await _handleMemberCardSwipe(rfidId);
+            }
+          }
+        } catch (e) {
+          _logger.e('Error processing member card swipe: $e');
         }
       });
       
@@ -367,6 +387,45 @@ class SensorRepositoryImpl implements SensorRepository {
       'day_of_week': dayOfWeek,
       'hour_of_day': hourOfDay,
     };
+  }
+
+  Future<void> _handleMemberCardSwipe(String rfidId) async {
+    try {
+      // Get the repositories
+      final userRepository = _ref.read(userRepositoryProvider);
+      final checkInRepository = _ref.read(checkInRepositoryProvider);
+      
+      // Find the user by RFID
+      final user = await userRepository.getUserByRfid(rfidId);
+      
+      if (user == null) {
+        _logger.w('Unknown RFID card swiped: $rfidId');
+        return;
+      }
+      
+      // Check if the user is currently checked in
+      if (user.isCurrentlyCheckedIn) {
+        // User is checked in, so check them out
+        _logger.i('Checking out user: ${user.fullName}');
+        await checkInRepository.checkoutUser(user.id, DateTime.now());
+        _logger.i('User checked out successfully');
+      } else {
+        // User is not checked in, so check them in
+        _logger.i('Checking in user: ${user.fullName}');
+        await checkInRepository.addCheckIn(
+          CheckInLog(
+            userId: user.id,
+            checkInTime: DateTime.now(),
+          ),
+        );
+        _logger.i('User checked in successfully');
+      }
+      
+      // Update UI with latest data
+      await _updateUIWithLatestData();
+    } catch (e) {
+      _logger.e('Error handling member card swipe: $e');
+    }
   }
 
   Future<void> dispose() async {
