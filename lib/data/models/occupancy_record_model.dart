@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:smartgymai/domain/entities/occupancy_record.dart';
 
 class OccupancyRecordModel extends OccupancyRecord {
@@ -23,11 +24,22 @@ class OccupancyRecordModel extends OccupancyRecord {
       timestamp = DateTime.now();
     }
     
+    Map<String, dynamic>? sensorReadings;
+    try {
+      if (json['sensor_readings'] is String) {
+        sensorReadings = jsonDecode(json['sensor_readings']);
+      } else if (json['sensor_readings'] is Map) {
+        sensorReadings = Map<String, dynamic>.from(json['sensor_readings']);
+      }
+    } catch (e) {
+      sensorReadings = null;
+    }
+    
     return OccupancyRecordModel(
       id: json['id'] != null ? (json['id'] is String ? int.parse(json['id']) : json['id']) : null,
       timestamp: timestamp,
       count: json['count'] ?? 0,
-      sensorReadings: json['sensor_readings'],
+      sensorReadings: sensorReadings,
     );
   }
 
@@ -36,7 +48,7 @@ class OccupancyRecordModel extends OccupancyRecord {
       'id': id,
       'timestamp': timestamp.toIso8601String(),
       'count': count,
-      'sensor_readings': sensorReadings,
+      'sensor_readings': sensorReadings != null ? jsonEncode(sensorReadings) : null,
     };
   }
 

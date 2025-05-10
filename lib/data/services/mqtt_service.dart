@@ -71,7 +71,7 @@ class MqttService {
       final mqttHost = AppConfig().mqttServerHost;
       final mqttPort = AppConfig().mqttServerPort;
       
-      _logger.i('Connecting to MQTT broker at $mqttHost:$mqttPort');
+      print('Connecting to MQTT broker at $mqttHost:$mqttPort');
       
       // Generate a unique ID each time to avoid connection conflicts
       final uuid = Uuid();
@@ -80,87 +80,60 @@ class MqttService {
       _client = MqttServerClient(mqttHost, uniqueId);
       
       _client!.port = mqttPort;
-      _client!.logging(on: true); // Enable logging for debugging
-      _client!.keepAlivePeriod = 20;
+      _client!.logging(on: true);
+      _client!.keepAlivePeriod = 0; // Disable keepalive
       _client!.onConnected = _onConnected;
       _client!.onDisconnected = _onDisconnected;
       _client!.onSubscribed = _onSubscribed;
       _client!.onSubscribeFail = _onSubscribeFail;
-      _client!.pongCallback = _pong;
       
       // Set connection timeout
       _client!.connectionMessage = MqttConnectMessage()
           .withClientIdentifier(uniqueId)
-          .startClean()
-          .withWillQos(MqttQos.atLeastOnce)
-          .withWillTopic('UA/IOT/clients/$uniqueId/status')
-          .withWillMessage('offline')
-          .withWillRetain();
+          .startClean();
 
-      // Connect with timeout
-      await _client!.connect().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          _logger.e('MQTT connection timeout');
-          throw TimeoutException('Connection to MQTT broker timed out');
-        },
-      );
+      print('Attempting MQTT connection...');
+      await _client!.connect();
+      print('Connection attempt completed');
       
-      // Check the connection result properly - only the returnCode matters
       if (_client!.connectionStatus!.returnCode == MqttConnectReturnCode.connectionAccepted) {
-        _logger.i('MQTT connection successful: ${_client!.connectionStatus}');
+        print('MQTT connection successful');
+        _updateConnectionState(MqttConnectionState.connected);
         _reconnectAttempts = 0;
         _lastErrorMessage = null;
+        
+        // Subscribe to topics immediately after successful connection
+        print('Subscribing to topics...');
+        _subscribeToAllTopics();
       } else {
+        print('Failed to connect: ${_client!.connectionStatus!.returnCode}');
         throw Exception('Failed to connect: ${_client!.connectionStatus!.returnCode}');
       }
-    } on SocketException catch (e) {
-      _lastErrorMessage = 'Network error: ${e.message}';
-      _logger.e('MQTT SocketException: $_lastErrorMessage');
-      _disconnect();
-      _updateConnectionState(MqttConnectionState.error);
-    } on TimeoutException catch (e) {
-      _lastErrorMessage = 'Connection timeout: ${e.message}';
-      _logger.e('MQTT TimeoutException: $_lastErrorMessage');
-      _disconnect();
-      _updateConnectionState(MqttConnectionState.error);
-    } on Exception catch (e) {
+    } catch (e) {
+      print('MQTT connection error: $e');
       _lastErrorMessage = 'MQTT Exception: $e';
-      _logger.e(_lastErrorMessage!);
       _disconnect();
       _updateConnectionState(MqttConnectionState.error);
-      
-      // Try to reconnect after error
-      if (_reconnectAttempts < _maxReconnectAttempts) {
-        _reconnectAttempts++;
-        _logger.i('Attempting to reconnect: attempt $_reconnectAttempts of $_maxReconnectAttempts');
-        Future.delayed(Duration(seconds: 2 * _reconnectAttempts), () {
-          connect();
-        });
-      }
-    }
-
-    // Subscribe to predefined topics if connected
-    if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
-      _subscribeToAllTopics();
     }
   }
   
   void _subscribeToAllTopics() {
+    print('Subscribing to all topics...');
     // Subscribe to key MQTT topics
     _subscribeToTopic(MqttConstants.sensorDataTopic);
+    _subscribeToTopic(MqttConstants.commandsTopic);
     _subscribeToTopic(MqttConstants.rfidRegisterTopic);
-    _subscribeToTopic(MqttConstants.rfidAuthTopic);
-    _subscribeToTopic(MqttConstants.occupancyTopic);
-    
-    // Subscribe to wildcard topic to catch all messages for debugging
-    _subscribeToTopic('UA/IOT/#');
+    _subscribeToTopic(MqttConstants.memberCardSwipeTopic);
+    print('All topics subscribed');
   }
 
   void _subscribeToTopic(String topic) {
-    if (_client?.connectionStatus?.state != MqttConnectionState.connected) return;
+    if (_client?.connectionStatus?.returnCode != MqttConnectReturnCode.connectionAccepted) {
+      print('Cannot subscribe to $topic: not connected to MQTT broker');
+      return;
+    }
     
-    _logger.i('Subscribing to topic: $topic');
+    print('Subscribing to topic: $topic');
     _client!.subscribe(topic, MqttQos.atLeastOnce);
     
     // Make sure we have a controller for this topic
@@ -170,33 +143,11 @@ class MqttService {
   }
 
   void _onConnected() {
-    _logger.i('MQTT client connected');
+    print('MQTT client connected callback');
     _updateConnectionState(MqttConnectionState.connected);
-    
-    // Subscribe to all tracked topics
-    _subscribeToAllTopics();
     
     // Start listening for messages
     _client!.updates!.listen(_onMessage);
-    
-    // Publish a message to indicate we're online
-    try {
-      final builder = MqttClientPayloadBuilder();
-      builder.addString(json.encode({
-        'status': 'online',
-        'clientId': _client!.clientIdentifier,
-        'timestamp': DateTime.now().toIso8601String(),
-      }));
-      
-      _client!.publishMessage(
-        'UA/IOT/clients/${_client!.clientIdentifier}/status',
-        MqttQos.atLeastOnce,
-        builder.payload!,
-        retain: true,
-      );
-    } catch (e) {
-      _logger.e('Error publishing online status: $e');
-    }
   }
 
   void _onDisconnected() {
@@ -220,40 +171,31 @@ class MqttService {
     _logger.e('Failed to subscribe to: $topic');
   }
 
-  void _pong() {
-    _logger.d('Ping response received');
-  }
-
   void _onMessage(List<MqttReceivedMessage<MqttMessage>> messages) {
     for (final message in messages) {
       final topic = message.topic;
       final recMess = message.payload as MqttPublishMessage;
-      final payload = 
-          MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+      final payload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
       
-      // Update diagnostic info
-      _lastReceivedTopic = topic;
-      _lastReceivedPayload = payload;
-      _lastMessageTime = DateTime.now();
-      
-      _logger.i('Received message on topic: $topic - $payload');
+      print('Received message on topic: $topic');
+      print('Raw payload: $payload');
       
       try {
-        // For UA/IOT topics, messages might be simple strings like RFID card IDs
         Map<String, dynamic> data;
         
-        if (topic == MqttConstants.rfidRegisterTopic || topic == MqttConstants.rfidAuthTopic) {
-          // For RFID topics, the payload might just be a card ID string
-          data = {
-            MqttConstants.rfidIdField: payload.trim(),
-            'timestamp': DateTime.now().toIso8601String(),
-          };
+        if (topic == MqttConstants.sensorDataTopic) {
+          try {
+            data = json.decode(payload);
+            data['timestamp'] = DateTime.now().toIso8601String();
+            print('Parsed sensor data: ${json.encode(data)}');
+          } catch (e) {
+            print('Error parsing sensor data JSON: $e');
+            continue;
+          }
         } else {
-          // For other topics try to parse as JSON
           try {
             data = json.decode(payload);
           } catch (e) {
-            // If not valid JSON, create a simple map with the payload as a value
             data = {
               'value': payload,
               'timestamp': DateTime.now().toIso8601String(),
@@ -262,18 +204,11 @@ class MqttService {
         }
         
         if (_topicControllers.containsKey(topic)) {
+          print('Adding data to topic controller: $topic');
           _topicControllers[topic]!.add(data);
         }
-        
-        // Also add to wildcard controller if it exists and this isn't already the wildcard
-        if (topic != 'UA/IOT/#' && _topicControllers.containsKey('UA/IOT/#')) {
-          _topicControllers['UA/IOT/#']!.add({
-            'topic': topic,
-            ...data,
-          });
-        }
       } catch (e) {
-        _logger.e('Error parsing MQTT message: $e');
+        print('Error processing MQTT message: $e');
       }
     }
   }

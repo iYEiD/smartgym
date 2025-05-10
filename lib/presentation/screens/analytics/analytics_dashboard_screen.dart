@@ -259,7 +259,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 value: sensorData?.motion == true ? 'Yes' : 'None',
                 unit: '',
                 icon: Icons.directions_run,
-                color: Colors.green,
+                color: sensorData?.motion == true ? Colors.red : Colors.green,
                 isLoading: isLoading,
               ),
               SensorValueCard(

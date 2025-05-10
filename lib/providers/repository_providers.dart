@@ -46,6 +46,5 @@ final checkInRepositoryProvider = Provider<CheckInRepository>((ref) {
 final sensorRepositoryProvider = Provider<SensorRepository>((ref) {
   final databaseService = ref.watch(databaseServiceProvider);
   final mqttService = ref.watch(mqttServiceProvider);
-  final logger = ref.watch(loggerProvider);
-  return SensorRepositoryImpl(databaseService, mqttService, logger);
+  return SensorRepositoryImpl(databaseService, mqttService);
 }); 

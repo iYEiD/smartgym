@@ -64,9 +64,9 @@ class SensorDataModel extends SensorData {
   factory SensorDataModel.fromMqttPayload(Map<String, dynamic> payload) {
     return SensorDataModel(
       timestamp: DateTime.now(),
-      light: payload['light'] is num ? payload['light'] : null,
-      temperature: payload['temperature'] is num ? payload['temperature']?.toDouble() : null,
-      humidity: payload['humidity'] is num ? payload['humidity']?.toDouble() : null,
+      light: payload['light'] is num ? payload['light'].toInt() : null,
+      temperature: payload['temperature'] is num ? payload['temperature'].toDouble() : null,
+      humidity: payload['humidity'] is num ? payload['humidity'].toDouble() : null,
       parking: payload['parking'] == 1 || payload['parking'] == true,
       motion: payload['motion'] == 1 || payload['motion'] == true,
       lighting: payload['lighting'] == 1 || payload['lighting'] == true,
