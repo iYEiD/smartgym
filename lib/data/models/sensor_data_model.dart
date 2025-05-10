@@ -4,28 +4,30 @@ class SensorDataModel extends SensorData {
   const SensorDataModel({
     super.id,
     required super.timestamp,
-    super.lightLevel,
+    super.light,
     super.temperature,
     super.humidity,
-    super.motionDetected,
-    required super.parkingSpots,
+    super.parking,
+    super.motion,
+    super.lighting,
+    super.ac,
+    super.gate,
   });
 
   factory SensorDataModel.fromJson(Map<String, dynamic> json) {
-    final parkingSpotsData = json['parking_spots'] is List
-        ? List<bool>.from(json['parking_spots'])
-        : <bool>[];
-
     return SensorDataModel(
       id: json['id'] != null ? (json['id'] is String ? int.parse(json['id']) : json['id']) : null,
       timestamp: json['timestamp'] != null 
           ? DateTime.parse(json['timestamp']) 
           : DateTime.now(),
-      lightLevel: json['light_level'],
+      light: json['light'],
       temperature: json['temperature'],
       humidity: json['humidity'],
-      motionDetected: json['motion_detected'] ?? false,
-      parkingSpots: parkingSpotsData,
+      parking: json['parking'],
+      motion: json['motion'],
+      lighting: json['lighting'],
+      ac: json['ac'],
+      gate: json['gate'],
     );
   }
 
@@ -33,11 +35,14 @@ class SensorDataModel extends SensorData {
     return {
       'id': id,
       'timestamp': timestamp.toIso8601String(),
-      'light_level': lightLevel,
+      'light': light,
       'temperature': temperature,
       'humidity': humidity,
-      'motion_detected': motionDetected,
-      'parking_spots': parkingSpots,
+      'parking': parking,
+      'motion': motion,
+      'lighting': lighting,
+      'ac': ac,
+      'gate': gate,
     };
   }
 
@@ -45,31 +50,28 @@ class SensorDataModel extends SensorData {
     return SensorDataModel(
       id: entity.id,
       timestamp: entity.timestamp,
-      lightLevel: entity.lightLevel,
+      light: entity.light,
       temperature: entity.temperature,
       humidity: entity.humidity,
-      motionDetected: entity.motionDetected,
-      parkingSpots: entity.parkingSpots,
+      parking: entity.parking,
+      motion: entity.motion,
+      lighting: entity.lighting,
+      ac: entity.ac,
+      gate: entity.gate,
     );
   }
 
   factory SensorDataModel.fromMqttPayload(Map<String, dynamic> payload) {
-    // Handle payload format from UA/IOT topics
-    final List<bool> parkingSpots = [];
-    
-    // Check if parkingSensor exists in the payload
-    if (payload.containsKey('parkingSensor') && payload['parkingSensor'] is List) {
-      final List parkingSensorData = payload['parkingSensor'] as List;
-      parkingSpots.addAll(parkingSensorData.map((spot) => spot == 1 || spot == true).toList());
-    }
-
     return SensorDataModel(
       timestamp: DateTime.now(),
-      lightLevel: payload['lightSensor'] is num ? payload['lightSensor'] : null,
+      light: payload['light'] is num ? payload['light'] : null,
       temperature: payload['temperature'] is num ? payload['temperature']?.toDouble() : null,
       humidity: payload['humidity'] is num ? payload['humidity']?.toDouble() : null,
-      motionDetected: payload['motionSensor'] == 1 || payload['motionSensor'] == true,
-      parkingSpots: parkingSpots,
+      parking: payload['parking'] == 1 || payload['parking'] == true,
+      motion: payload['motion'] == 1 || payload['motion'] == true,
+      lighting: payload['lighting'] == 1 || payload['lighting'] == true,
+      ac: payload['ac'] == 1 || payload['ac'] == true,
+      gate: payload['gate'] == 1 || payload['gate'] == true,
     );
   }
 } 

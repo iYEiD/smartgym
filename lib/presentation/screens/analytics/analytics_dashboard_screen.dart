@@ -77,7 +77,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
               ),
               _buildParkingAvailability(
                 context, 
-                sensorsState.latestSensorData?.parkingSpots ?? [],
+                sensorsState.latestSensorData?.parking,
                 isLoading: sensorsState.isLoading,
               ),
             ],
@@ -248,7 +248,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
               ),
               SensorValueCard(
                 title: 'Light Level',
-                value: sensorData?.lightLevel?.toString() ?? '--',
+                value: sensorData?.light?.toString() ?? '--',
                 unit: 'lux',
                 icon: Icons.light_mode,
                 color: Colors.amber,
@@ -256,10 +256,42 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
               ),
               SensorValueCard(
                 title: 'Motion',
-                value: sensorData?.motionDetected == true ? 'Yes' : 'None',
+                value: sensorData?.motion == true ? 'Yes' : 'None',
                 unit: '',
                 icon: Icons.directions_run,
                 color: Colors.green,
+                isLoading: isLoading,
+              ),
+              SensorValueCard(
+                title: 'Lighting',
+                value: sensorData?.lighting == true ? 'On' : 'Off',
+                unit: '',
+                icon: Icons.lightbulb,
+                color: Colors.yellow,
+                isLoading: isLoading,
+              ),
+              SensorValueCard(
+                title: 'AC',
+                value: sensorData?.ac == true ? 'On' : 'Off',
+                unit: '',
+                icon: Icons.ac_unit,
+                color: Colors.cyan,
+                isLoading: isLoading,
+              ),
+              SensorValueCard(
+                title: 'Gate',
+                value: sensorData?.gate == true ? 'Open' : 'Closed',
+                unit: '',
+                icon: Icons.door_sliding,
+                color: Colors.purple,
+                isLoading: isLoading,
+              ),
+              SensorValueCard(
+                title: 'Parking',
+                value: '${_calculateAvailableParkingSpots(sensorData?.parking)}/8',
+                unit: 'spots',
+                icon: Icons.local_parking,
+                color: Colors.indigo,
                 isLoading: isLoading,
               ),
             ],
@@ -284,12 +316,35 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
 
   Widget _buildParkingAvailability(
     BuildContext context, 
-    List<bool> parkingSpots,
+    bool? parkingStatus,
     {bool isLoading = false}
   ) {
+    // Create a list of 8 parking spots:
+    // - 1 dynamic spot (from sensor)
+    // - 5 static spots (always available)
+    // - 2 static spots (always taken)
+    final List<bool> parkingSpots = [
+      parkingStatus ?? false, // Dynamic spot from sensor
+      true, // Static spot 1 (available)
+      true, // Static spot 2 (available)
+      true, // Static spot 3 (available)
+      true, // Static spot 4 (available)
+      true, // Static spot 5 (available)
+      false, // Static spot 6 (always taken)
+      false, // Static spot 7 (always taken)
+    ];
+
     return ParkingSpotIndicator(
       parkingSpots: parkingSpots,
       isLoading: isLoading,
     );
+  }
+
+  // Helper method to calculate available parking spots
+  int _calculateAvailableParkingSpots(bool? parkingStatus) {
+    // 5 static spots (always available) + 2 static spots (always taken) + 1 dynamic spot
+    final staticAvailableSpots = 5;
+    final dynamicSpot = parkingStatus == true ? 1 : 0;
+    return staticAvailableSpots + dynamicSpot;
   }
 } 

@@ -118,20 +118,23 @@ class SensorRepositoryImpl implements SensorRepository {
     await _databaseService.execute(
       '''
       INSERT INTO sensor_data (
-        timestamp, light_level, temperature, humidity, 
-        motion_detected, parking_spots
+        timestamp, light, temperature, humidity, 
+        parking, motion, lighting, ac, gate
       ) VALUES (
-        @timestamp, @light_level, @temperature, @humidity, 
-        @motion_detected, @parking_spots
+        @timestamp, @light, @temperature, @humidity, 
+        @parking, @motion, @lighting, @ac, @gate
       )
       ''',
       substitutionValues: {
         'timestamp': sensorDataModel.timestamp.toIso8601String(),
-        'light_level': sensorDataModel.lightLevel,
+        'light': sensorDataModel.light,
         'temperature': sensorDataModel.temperature,
         'humidity': sensorDataModel.humidity,
-        'motion_detected': sensorDataModel.motionDetected,
-        'parking_spots': json.encode(sensorDataModel.parkingSpots),
+        'parking': sensorDataModel.parking,
+        'motion': sensorDataModel.motion,
+        'lighting': sensorDataModel.lighting,
+        'ac': sensorDataModel.ac,
+        'gate': sensorDataModel.gate,
       },
     );
   }

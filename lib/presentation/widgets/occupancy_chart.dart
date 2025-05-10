@@ -178,8 +178,8 @@ class OccupancyChart extends StatelessWidget {
       gridData: FlGridData(
         show: true,
         drawVerticalLine: true,
-        horizontalInterval: capacity / 5,
-        verticalInterval: (maxX - minX) / 5,
+        horizontalInterval: capacity > 0 ? capacity / 5 : 1,
+        verticalInterval: (maxX - minX) > 0 ? (maxX - minX) / 5 : 1,
         getDrawingHorizontalLine: (value) {
           return FlLine(
             color: Colors.grey[300],
@@ -212,7 +212,7 @@ class OccupancyChart extends StatelessWidget {
                 ),
               );
             },
-            interval: (maxX - minX) / 5,
+            interval: (maxX - minX) > 0 ? (maxX - minX) / 5 : 1,
           ),
         ),
         leftTitles: AxisTitles(
@@ -231,7 +231,7 @@ class OccupancyChart extends StatelessWidget {
                 ),
               );
             },
-            interval: capacity / 5,
+            interval: capacity > 0 ? capacity / 5 : 1,
           ),
         ),
         topTitles: const AxisTitles(

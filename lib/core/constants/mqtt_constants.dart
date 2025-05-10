@@ -24,11 +24,14 @@ class MqttConstants {
   static const int qosExactlyOnce = 2;
   
   // Payload fields
-  static const String lightSensorField = "lightSensor";
+  static const String lightField = "light";
   static const String temperatureField = "temperature";
   static const String humidityField = "humidity";
-  static const String motionSensorField = "motionSensor";
-  static const String parkingSensorField = "parkingSensor";
+  static const String parkingField = "parking";
+  static const String motionField = "motion";
+  static const String lightingField = "lighting";
+  static const String acField = "ac";
+  static const String gateField = "gate";
   static const String rfidIdField = "rfidId";
   static const String countField = "count";
 } 
