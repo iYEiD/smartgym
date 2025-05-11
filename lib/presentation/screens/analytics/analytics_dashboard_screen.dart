@@ -210,6 +210,160 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
     );
   }
 
+  void _showSettingsDialog(BuildContext context) {
+    final tempMinController = TextEditingController();
+    final tempMaxController = TextEditingController();
+    final humidityMinController = TextEditingController();
+    final humidityMaxController = TextEditingController();
+    final lightMinController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Threshold Settings'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Temperature (°C)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: tempMinController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Min',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: tempMaxController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Max',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Humidity (%)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: humidityMinController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Min',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: humidityMaxController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Max',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Light (lux)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: lightMinController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Minimum',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final Map<String, dynamic> command = {
+                'command': 'update_thresholds',
+              };
+
+              // Check temperature inputs
+              if (tempMinController.text.isNotEmpty || tempMaxController.text.isNotEmpty) {
+                if (tempMinController.text.isEmpty || tempMaxController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Both temperature min and max must be set'),
+                    ),
+                  );
+                  return;
+                }
+                command['temp_min'] = double.parse(tempMinController.text);
+                command['temp_max'] = double.parse(tempMaxController.text);
+              }
+
+              // Check humidity inputs
+              if (humidityMinController.text.isNotEmpty || humidityMaxController.text.isNotEmpty) {
+                if (humidityMinController.text.isEmpty || humidityMaxController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Both humidity min and max must be set'),
+                    ),
+                  );
+                  return;
+                }
+                command['humidity_min'] = double.parse(humidityMinController.text);
+                command['humidity_max'] = double.parse(humidityMaxController.text);
+              }
+
+              // Check light input
+              if (lightMinController.text.isNotEmpty) {
+                command['light_min'] = double.parse(lightMinController.text);
+              }
+
+              // Send the command
+              final mqttService = ref.read(mqttServiceProvider);
+              mqttService.publishMessage(
+                MqttConstants.commandsTopic,
+                command,
+              );
+
+              Navigator.of(context).pop();
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAutomaticControlSwitch(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,9 +413,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                     ),
                     const SizedBox(width: 8),
                     TextButton(
-                      onPressed: () {
-                        // Settings functionality will be added later
-                      },
+                      onPressed: () => _showSettingsDialog(context),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         minimumSize: Size.zero,
