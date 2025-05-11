@@ -9,6 +9,8 @@ import 'package:smartgymai/presentation/widgets/occupancy_chart.dart';
 import 'package:smartgymai/presentation/widgets/parking_spot_indicator.dart';
 import 'package:smartgymai/presentation/widgets/sensor_value_card.dart';
 import 'package:smartgymai/providers/sensors_provider.dart';
+import 'package:smartgymai/core/constants/mqtt_constants.dart';
+import 'package:smartgymai/providers/repository_providers.dart';
 
 class AnalyticsDashboardScreen extends ConsumerStatefulWidget {
   const AnalyticsDashboardScreen({Key? key}) : super(key: key);
@@ -18,6 +20,8 @@ class AnalyticsDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScreen> {
+  bool _isAutomaticControlEnabled = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +68,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 gymCapacity,
                 isLoading: sensorsState.isLoading,
               ),
+              _buildAutomaticControlSwitch(context),
               _buildEnvironmentSensorsGrid(
                 context, 
                 sensorsState.latestSensorData,
@@ -202,6 +207,81 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAutomaticControlSwitch(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Automatic Control',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          margin: const EdgeInsets.all(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Auto Sensors',
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Switch(
+                      value: _isAutomaticControlEnabled,
+                      onChanged: (bool value) {
+                        setState(() {
+                          _isAutomaticControlEnabled = value;
+                        });
+                        final mqttService = ref.read(mqttServiceProvider);
+                        final command = value 
+                          ? {'command': 'automatic_control_on'}
+                          : {'command': 'automatic_control_off'};
+                        
+                        mqttService.publishMessage(
+                          MqttConstants.commandsTopic,
+                          command,
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        // Settings functionality will be added later
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Settings',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
