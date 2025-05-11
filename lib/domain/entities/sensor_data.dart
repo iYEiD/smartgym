@@ -3,53 +3,65 @@ import 'package:equatable/equatable.dart';
 class SensorData extends Equatable {
   final int? id;
   final DateTime timestamp;
-  final int? lightLevel;
+  final int? light;
   final double? temperature;
   final double? humidity;
-  final bool? motionDetected;
-  final List<bool> parkingSpots;
+  final bool? parking;
+  final bool? motion;
+  final bool? lighting;
+  final bool? ac;
+  final bool? gate;
 
   const SensorData({
     this.id,
     required this.timestamp,
-    this.lightLevel,
+    this.light,
     this.temperature,
     this.humidity,
-    this.motionDetected,
-    required this.parkingSpots,
+    this.parking,
+    this.motion,
+    this.lighting,
+    this.ac,
+    this.gate,
   });
 
-  // Calculate number of available parking spots
+  // Calculate number of available parking spots (1 dynamic + 5 static)
   int get availableParkingSpots => 
-      parkingSpots.where((spot) => spot == true).length;
+      (parking == true ? 1 : 0) + 5; // 5 static spots + 1 dynamic spot
       
   // Calculate percentage of available parking
   double get parkingAvailabilityPercentage => 
-      parkingSpots.isEmpty ? 0 : availableParkingSpots / parkingSpots.length * 100;
+      (availableParkingSpots / 6) * 100; // Total of 6 spots
 
   SensorData copyWith({
     int? id,
     DateTime? timestamp,
-    int? lightLevel,
+    int? light,
     double? temperature,
     double? humidity,
-    bool? motionDetected,
-    List<bool>? parkingSpots,
+    bool? parking,
+    bool? motion,
+    bool? lighting,
+    bool? ac,
+    bool? gate,
   }) {
     return SensorData(
       id: id ?? this.id,
       timestamp: timestamp ?? this.timestamp,
-      lightLevel: lightLevel ?? this.lightLevel,
+      light: light ?? this.light,
       temperature: temperature ?? this.temperature,
       humidity: humidity ?? this.humidity,
-      motionDetected: motionDetected ?? this.motionDetected,
-      parkingSpots: parkingSpots ?? this.parkingSpots,
+      parking: parking ?? this.parking,
+      motion: motion ?? this.motion,
+      lighting: lighting ?? this.lighting,
+      ac: ac ?? this.ac,
+      gate: gate ?? this.gate,
     );
   }
 
   @override
   List<Object?> get props => [
-    id, timestamp, lightLevel, temperature, 
-    humidity, motionDetected, parkingSpots
+    id, timestamp, light, temperature, 
+    humidity, parking, motion, lighting, ac, gate
   ];
 } 

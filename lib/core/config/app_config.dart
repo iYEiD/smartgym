@@ -28,7 +28,7 @@ class AppConfig {
   static const String _defaultMqttHost = 'test.mosquitto.org';
   static const int _defaultMqttPort = 1883;
   static const bool _defaultMqttUseSecure = false;
-  static const String _defaultDbHost = '192.168.1.10'; // Use 10.0.2.2 to access host from Android emulator, replace with ip
+  static const String _defaultDbHost = '192.168.8.19'; // Use 10.0.2.2 to access host from Android emulator, ipreplacehere
   static const int _defaultDbPort = 5432;
   static const String _defaultDbName = 'smartgym_db';
   static const String _defaultDbUser = 'smartgym';

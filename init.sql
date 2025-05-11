@@ -36,11 +36,14 @@ CREATE TABLE IF NOT EXISTS occupancy_records (
 CREATE TABLE IF NOT EXISTS sensor_data (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    light_level INTEGER,
+    light INTEGER,
     temperature FLOAT,
     humidity FLOAT,
-    motion_detected BOOLEAN,
-    parking_spots JSONB
+    parking BOOLEAN,
+    motion BOOLEAN,
+    lighting BOOLEAN,
+    ac BOOLEAN,
+    gate BOOLEAN
 );
 
 -- Create index for timestamp-based queries

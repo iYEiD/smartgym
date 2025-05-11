@@ -69,55 +69,55 @@ class _UserRegistrationScreenState extends ConsumerState<UserRegistrationScreen>
       _isWaitingForRfid = true;
     });
     
-    // In a real app, this would subscribe to the MQTT topic
-    // For this demo, we'll simulate an RFID scan after 3 seconds
-    _rfidSubscription = Stream.periodic(const Duration(seconds: 3), (i) => i)
-        .take(1)
-        .listen((_) {
-          // Simulate receiving an RFID
-          _onRfidReceived('${const Uuid().v4().substring(0, 8)}');
-        });
+    // // In a real app, this would subscribe to the MQTT topic
+    // // For this demo, we'll simulate an RFID scan after 3 seconds
+    // _rfidSubscription = Stream.periodic(const Duration(seconds: 3), (i) => i)
+    //     .take(1)
+    //     .listen((_) {
+    //       // Simulate receiving an RFID
+    //       _onRfidReceived('${const Uuid().v4().substring(0, 8)}');
+    //     });
 
         //below is for implementation
     //         // Get the MQTT service and subscribe to the RFID register topic
-    // final mqttService = ref.read(mqttServiceProvider);
+    final mqttService = ref.read(mqttServiceProvider);
     
-    // // Connect to MQTT if not already connected
-    // mqttService.connect().then((_) {
-    //   // Subscribe to the RFID register topic
-    //   _rfidSubscription = mqttService.subscribeTo(MqttConstants.rfidRegisterTopic)
-    //       .listen((data) {
-    //         if (data.containsKey(MqttConstants.rfidIdField)) {
-    //           final rfidId = data[MqttConstants.rfidIdField];
-    //           if (rfidId != null && rfidId is String && rfidId.isNotEmpty) {
-    //             _onRfidReceived(rfidId);
-    //           }
-    //         }
-    //       });
+    // Connect to MQTT if not already connected
+    mqttService.connect().then((_) {
+      // Subscribe to the RFID register topic
+      _rfidSubscription = mqttService.subscribeTo(MqttConstants.rfidRegisterTopic)
+          .listen((data) {
+            if (data.containsKey(MqttConstants.rfidIdField)) {
+              final rfidId = data[MqttConstants.rfidIdField];
+              if (rfidId != null && rfidId is String && rfidId.isNotEmpty) {
+                _onRfidReceived(rfidId);
+              }
+            }
+          });
       
-    //   // Show a message that we're waiting for an RFID card
-    //   if (mounted) {
-    //     ScaffoldMessenger.of(context).showSnackBar(
-    //       const SnackBar(
-    //         content: Text('Waiting for RFID card scan...'),
-    //         duration: Duration(seconds: 2),
-    //       ),
-    //     );
-    //   }
-    // }).catchError((error) {
-    //   // Show error if MQTT connection fails
-    //   if (mounted) {
-    //     ScaffoldMessenger.of(context).showSnackBar(
-    //       SnackBar(
-    //         content: Text('Failed to connect to MQTT: $error'),
-    //         backgroundColor: Colors.red,
-    //       ),
-    //     );
-    //     setState(() {
-    //       _isWaitingForRfid = false;
-    //     });
-    //   }
-    // });
+      // Show a message that we're waiting for an RFID card
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Waiting for RFID card scan...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }).catchError((error) {
+      // Show error if MQTT connection fails
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to connect to MQTT: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isWaitingForRfid = false;
+        });
+      }
+    });
   }
 
   void _stopListeningForRfid() {
@@ -201,6 +201,31 @@ class _UserRegistrationScreenState extends ConsumerState<UserRegistrationScreen>
         throw Exception('RFID ID cannot be empty');
       }
       
+      // Check if RFID already exists
+      final userRepository = ref.read(userRepositoryProvider);
+      final existingUserWithRfid = await userRepository.getUserById(_rfidId!);
+      if (existingUserWithRfid != null) {
+        throw Exception('RFID card is already registered to ${existingUserWithRfid.fullName}');
+      }
+      
+      // Check if email is already registered (if email is provided)
+      if (_emailController.text.isNotEmpty) {
+        final allUsers = await userRepository.getAllUsers();
+        final existingUserWithEmail = allUsers.firstWhere(
+          (user) => user.email?.toLowerCase() == _emailController.text.toLowerCase(),
+          orElse: () => User(
+            id: '',
+            firstName: '',
+            lastName: '',
+            membershipType: '',
+            registrationDate: DateTime.now(),
+          ),
+        );
+        if (existingUserWithEmail.id.isNotEmpty) {
+          throw Exception('Email is already registered to ${existingUserWithEmail.fullName}');
+        }
+      }
+      
       print('Creating user with RFID: $_rfidId');
       
       // Create a new user entity
@@ -216,6 +241,13 @@ class _UserRegistrationScreenState extends ConsumerState<UserRegistrationScreen>
       
       // Add the user to the database using the users provider
       await ref.read(usersProvider.notifier).addUser(user);
+      
+      // Send register_card command
+      final mqttService = ref.read(mqttServiceProvider);
+      await mqttService.publishMessage(
+        MqttConstants.commandsTopic,
+        {'command': 'register_card'},
+      );
       
       if (!mounted) return;
       
@@ -236,8 +268,14 @@ class _UserRegistrationScreenState extends ConsumerState<UserRegistrationScreen>
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error registering user: ${e.toString()}'),
+          content: Text('Registration failed: ${e.toString()}'),
           backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'OK',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
     } finally {

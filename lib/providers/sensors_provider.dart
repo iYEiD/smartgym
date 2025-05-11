@@ -128,6 +128,42 @@ class SensorsNotifier extends StateNotifier<SensorsState> {
     }
   }
 
+  // Comprehensive method to refresh all occupancy-related data
+  Future<void> refreshOccupancyData() async {
+    try {
+      state = state.copyWith(isLoading: true, errorMessage: null);
+      
+      final sensorRepository = _ref.read(sensorRepositoryProvider);
+      
+      // Get latest occupancy
+      final latestOccupancy = await sensorRepository.getLatestOccupancy();
+      
+      // Get occupancy history
+      final now = DateTime.now();
+      final start = now.subtract(const Duration(days: 1));
+      
+      List<OccupancyRecord> records = [];
+      try {
+        records = await sensorRepository.getOccupancyRecords(start, now);
+      } catch (historyError) {
+        // If there's an error fetching history, continue with empty records
+        // rather than failing the entire operation
+      }
+      
+      // Update state with all new data
+      state = state.copyWith(
+        latestOccupancy: latestOccupancy,
+        occupancyHistory: records,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to refresh occupancy data: ${e.toString()}',
+      );
+    }
+  }
+
   Future<Map<String, dynamic>> getOccupancyAnalytics({int days = 7}) async {
     try {
       final sensorRepository = _ref.read(sensorRepositoryProvider);
