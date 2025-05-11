@@ -6,6 +6,8 @@ import 'package:smartgymai/domain/entities/user.dart';
 import 'package:smartgymai/presentation/screens/user_management/user_registration_screen.dart';
 import 'package:smartgymai/presentation/widgets/user_list_item.dart';
 import 'package:smartgymai/providers/users_provider.dart';
+import 'package:smartgymai/providers/repository_providers.dart';
+import 'package:smartgymai/core/constants/mqtt_constants.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({Key? key}) : super(key: key);
@@ -281,6 +283,13 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   void _navigateToUserRegistration(BuildContext context) async {
     try {
+      // Send register_card command before navigating
+      final mqttService = ref.read(mqttServiceProvider);
+      await mqttService.publishMessage(
+        MqttConstants.commandsTopic,
+        {'command': 'register_card'},
+      );
+
       // Navigate to registration screen and refresh users when returning
       final result = await Navigator.push<User?>(
         context,
