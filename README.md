@@ -42,9 +42,10 @@ flutter run
 
 The application connects to the following MQTT topics:
 
-- `/ua/edu/lb/iot2025/sensordata` - Sensor data (light, temperature, humidity, motion, parking)
-- `/ua/edu/lb/iot2025/rfidregister` - RFID card registration
-- `/ua/edu/lb/iot2025/occupancy` - Gym occupancy data
+- `UA/IOT/uniqueId/sensorData` - Sensor data (light, temperature, humidity, motion, parking)
+- `UA/IOT/uniqueId/registerCard` - RFID card registration
+- `UA/IOT/uniqueId/commands` - Sends commands for the rasbperry pi 
+- `UA/IOT/uniqueId/memberCardSwipe` - Member RFID card swipe events for access control or logging
 
 ## Project Structure
 
