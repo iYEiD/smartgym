@@ -242,13 +242,6 @@ class _UserRegistrationScreenState extends ConsumerState<UserRegistrationScreen>
       // Add the user to the database using the users provider
       await ref.read(usersProvider.notifier).addUser(user);
       
-      // Send register_card command
-      final mqttService = ref.read(mqttServiceProvider);
-      await mqttService.publishMessage(
-        MqttConstants.commandsTopic,
-        {'command': 'register_card'},
-      );
-      
       if (!mounted) return;
       
       // Show success message and return to the previous screen
