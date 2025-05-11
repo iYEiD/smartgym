@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:smartgymai/core/theme/app_theme.dart';
+import 'package:smartgymai/presentation/widgets/sensor_command_dialog.dart';
 
 class SensorValueCard extends StatelessWidget {
   final String title;
   final String value;
   final String unit;
   final IconData icon;
-  final Color? color;
+  final Color color;
   final bool isLoading;
-  final VoidCallback? onTap;
+  final bool isClickable;
 
   const SensorValueCard({
     Key? key,
@@ -16,9 +17,9 @@ class SensorValueCard extends StatelessWidget {
     required this.value,
     required this.unit,
     required this.icon,
-    this.color,
+    required this.color,
     this.isLoading = false,
-    this.onTap,
+    this.isClickable = false,
   }) : super(key: key);
 
   @override
@@ -29,7 +30,7 @@ class SensorValueCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: isClickable ? () => _showCommandDialog(context) : null,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -51,7 +52,7 @@ class SensorValueCard extends StatelessWidget {
                   SizedBox(width: 4),
                   Icon(
                     icon,
-                    color: color ?? Theme.of(context).colorScheme.primary,
+                    color: color,
                     size: 24,
                   ),
                 ],
@@ -66,7 +67,7 @@ class SensorValueCard extends StatelessWidget {
                           value,
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: color ?? AppTheme.onSurfaceColor,
+                            color: color,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -82,6 +83,16 @@ class SensorValueCard extends StatelessWidget {
                         ),
                       ],
                     ),
+              if (isClickable) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Tap to control',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -105,6 +116,16 @@ class SensorValueCard extends StatelessWidget {
             strokeWidth: 2,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showCommandDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => SensorCommandDialog(
+        sensorType: title,
+        currentState: value.toLowerCase() == 'on' || value.toLowerCase() == 'yes',
       ),
     );
   }

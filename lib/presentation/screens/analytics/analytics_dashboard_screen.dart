@@ -261,6 +261,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.directions_run,
                 color: sensorData?.motion == true ? Colors.red : Colors.green,
                 isLoading: isLoading,
+                isClickable: true,
               ),
               SensorValueCard(
                 title: 'Lighting',
@@ -269,6 +270,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.lightbulb,
                 color: Colors.yellow,
                 isLoading: isLoading,
+                isClickable: true,
               ),
               SensorValueCard(
                 title: 'AC',
@@ -277,6 +279,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.ac_unit,
                 color: Colors.cyan,
                 isLoading: isLoading,
+                isClickable: true,
               ),
               SensorValueCard(
                 title: 'Gate',
@@ -285,6 +288,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.door_sliding,
                 color: Colors.purple,
                 isLoading: isLoading,
+                isClickable: true,
               ),
               SensorValueCard(
                 title: 'Parking',

@@ -214,15 +214,6 @@ class MqttService {
   }
 
   Future<void> publishMessage(String topic, Map<String, dynamic> message) async {
-    if (_client?.connectionStatus?.state != MqttConnectionState.connected) {
-      await connect();
-      
-      // If still not connected after trying to connect, return
-      if (_client?.connectionStatus?.state != MqttConnectionState.connected) {
-        _logger.e('Cannot publish message: not connected to MQTT broker');
-        return;
-      }
-    }
     
     try {
       final builder = MqttClientPayloadBuilder();
