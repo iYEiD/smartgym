@@ -24,7 +24,7 @@ class DatabaseService {
       // Replace localhost/postgres with 10.0.2.2 for Android emulator
       final configHost = AppConfig().dbHost;
       if (configHost == 'postgres' || configHost == 'localhost' || configHost == '127.0.0.1') {
-        return '192.168.8.19'; //ipreplacehere
+        return '0.0.0.0'; //ipreplacehere
       }
       return configHost;
     }

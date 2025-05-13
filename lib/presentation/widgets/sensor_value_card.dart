@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smartgymai/core/theme/app_theme.dart';
 import 'package:smartgymai/presentation/widgets/sensor_command_dialog.dart';
+import 'package:smartgymai/presentation/widgets/sensor_history_dialog.dart';
 
 class SensorValueCard extends StatelessWidget {
   final String title;
@@ -24,13 +25,18 @@ class SensorValueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isHistorySensor = title == 'Temperature' || title == 'Humidity' || title == 'Light Level';
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
       child: InkWell(
-        onTap: isClickable ? () => _showCommandDialog(context) : null,
+        onTap: isLoading
+            ? null
+            : isHistorySensor
+                ? () => _showHistoryDialog(context)
+                : (isClickable ? () => _showCommandDialog(context) : null),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -83,7 +89,16 @@ class SensorValueCard extends StatelessWidget {
                         ),
                       ],
                     ),
-              if (isClickable) ...[
+              if (isHistorySensor) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Tap to view history',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+              ] else if (isClickable) ...[
                 const SizedBox(height: 8),
                 Text(
                   'Tap to control',
@@ -129,4 +144,21 @@ class SensorValueCard extends StatelessWidget {
       ),
     );
   }
-} 
+
+  void _showHistoryDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String sensorType = title;
+        String unitStr = unit;
+        Color chartColor = color;
+        if (title == 'Light Level') sensorType = 'Light';
+        return SensorHistoryDialog(
+          sensorType: sensorType,
+          unit: unitStr,
+          color: chartColor,
+        );
+      },
+    );
+  }
+}

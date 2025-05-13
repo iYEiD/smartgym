@@ -469,6 +469,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.thermostat,
                 color: Colors.orange,
                 isLoading: isLoading,
+                isClickable: true, // Enable history dialog
               ),
               SensorValueCard(
                 title: 'Humidity',
@@ -477,6 +478,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.water_drop,
                 color: Colors.blue,
                 isLoading: isLoading,
+                isClickable: true, // Enable history dialog
               ),
               SensorValueCard(
                 title: 'Light Level',
@@ -485,6 +487,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.light_mode,
                 color: Colors.amber,
                 isLoading: isLoading,
+                isClickable: true, // Enable history dialog
               ),
               SensorValueCard(
                 title: 'Motion',
@@ -583,4 +586,4 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
     final dynamicSpot = parkingStatus == true ? 1 : 0;
     return staticAvailableSpots + dynamicSpot;
   }
-} 
+}
