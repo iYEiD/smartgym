@@ -5,6 +5,7 @@ import 'package:smartgymai/presentation/screens/analytics/analytics_dashboard_sc
 import 'package:smartgymai/presentation/screens/activity_log/activity_log_screen.dart';
 import 'package:smartgymai/presentation/screens/user_management/user_management_screen.dart';
 import 'package:smartgymai/presentation/screens/settings/settings_screen.dart';
+import 'package:smartgymai/presentation/screens/ai_analytics/ai_analytics_screen.dart';
 import 'package:smartgymai/presentation/widgets/connection_status_bar.dart';
 import 'package:smartgymai/providers/sensors_provider.dart';
 
@@ -17,11 +18,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
-  
-  final List<Widget> _screens = [
+    final List<Widget> _screens = [
     const AnalyticsDashboardScreen(),
     const UserManagementScreen(),
     const ActivityLogScreen(),
+    const AIAnalyticsScreen(),
     const SettingsScreen(),
   ];
 
@@ -62,8 +63,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // Refresh data when switching to the dashboard tab
             _refreshDataIfNeeded();
           });
-        },
-        destinations: const [
+        },        destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
@@ -78,6 +78,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: 'Activity',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: 'AI',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

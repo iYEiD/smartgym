@@ -59,11 +59,11 @@ dependencies:
   # Connectivity and storage
   connectivity_plus: ^5.0.1
   shared_preferences: ^2.2.2
-  
-  # Utils
+    # Utils
   equatable: ^2.0.5
   uuid: ^4.2.1
   logger: ^2.0.2
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
