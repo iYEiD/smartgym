@@ -15,14 +15,26 @@ class SensorDataModel extends SensorData {
   });
 
   factory SensorDataModel.fromJson(Map<String, dynamic> json) {
+    DateTime timestamp;
+    try {
+      if (json['timestamp'] is String) {
+        timestamp = DateTime.parse(json['timestamp']);
+      } else if (json['timestamp'] is DateTime) {
+        timestamp = json['timestamp'];
+      } else {
+        timestamp = DateTime.now();
+      }
+    } catch (e) {
+      // Fallback to current time if parsing fails
+      timestamp = DateTime.now();
+    }
+
     return SensorDataModel(
       id: json['id'] != null ? (json['id'] is String ? int.parse(json['id']) : json['id']) : null,
-      timestamp: json['timestamp'] != null 
-          ? DateTime.parse(json['timestamp']) 
-          : DateTime.now(),
+      timestamp: timestamp,
       light: json['light'],
-      temperature: json['temperature'],
-      humidity: json['humidity'],
+      temperature: json['temperature'] is num ? json['temperature'].toDouble() : null,
+      humidity: json['humidity'] is num ? json['humidity'].toDouble() : null,
       parking: json['parking'],
       motion: json['motion'],
       lighting: json['lighting'],

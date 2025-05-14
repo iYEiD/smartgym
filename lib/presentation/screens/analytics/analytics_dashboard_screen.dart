@@ -469,6 +469,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.thermostat,
                 color: Colors.orange,
                 isLoading: isLoading,
+                showHistory: true,
               ),
               SensorValueCard(
                 title: 'Humidity',
@@ -477,6 +478,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.water_drop,
                 color: Colors.blue,
                 isLoading: isLoading,
+                showHistory: true,
               ),
               SensorValueCard(
                 title: 'Light Level',
@@ -485,6 +487,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                 icon: Icons.light_mode,
                 color: Colors.amber,
                 isLoading: isLoading,
+                showHistory: true,
               ),
               SensorValueCard(
                 title: 'Motion',

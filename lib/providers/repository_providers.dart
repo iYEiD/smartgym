@@ -8,6 +8,7 @@ import 'package:smartgymai/data/repositories/sensor_repository_impl.dart';
 import 'package:smartgymai/domain/repositories/user_repository.dart';
 import 'package:smartgymai/domain/repositories/check_in_repository.dart';
 import 'package:smartgymai/domain/repositories/sensor_repository.dart';
+import 'package:smartgymai/providers/service_providers.dart';
 
 // Logger provider
 final loggerProvider = Provider<Logger>((ref) {

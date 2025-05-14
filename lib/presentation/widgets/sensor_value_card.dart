@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smartgymai/core/theme/app_theme.dart';
 import 'package:smartgymai/presentation/widgets/sensor_command_dialog.dart';
+import 'package:smartgymai/presentation/widgets/sensor_history_dialog.dart';
 
 class SensorValueCard extends StatelessWidget {
   final String title;
@@ -10,6 +11,7 @@ class SensorValueCard extends StatelessWidget {
   final Color color;
   final bool isLoading;
   final bool isClickable;
+  final bool showHistory;
 
   const SensorValueCard({
     Key? key,
@@ -20,6 +22,7 @@ class SensorValueCard extends StatelessWidget {
     required this.color,
     this.isLoading = false,
     this.isClickable = false,
+    this.showHistory = false,
   }) : super(key: key);
 
   @override
@@ -83,7 +86,32 @@ class SensorValueCard extends StatelessWidget {
                         ),
                       ],
                     ),
-              if (isClickable) ...[
+              if (showHistory) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () => _showHistoryDialog(context),
+                    icon: Icon(
+                      Icons.history,
+                      size: 16,
+                      color: color,
+                    ),
+                    label: Text(
+                      'View History',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+              ] else if (isClickable) ...[
                 const SizedBox(height: 8),
                 Text(
                   'Tap to control',
@@ -126,6 +154,17 @@ class SensorValueCard extends StatelessWidget {
       builder: (context) => SensorCommandDialog(
         sensorType: title,
         currentState: value.toLowerCase() == 'on' || value.toLowerCase() == 'yes',
+      ),
+    );
+  }
+
+  void _showHistoryDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => SensorHistoryDialog(
+        sensorType: title,
+        unit: unit,
+        color: color,
       ),
     );
   }
